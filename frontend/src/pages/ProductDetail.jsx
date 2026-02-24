@@ -86,12 +86,18 @@ export default function ProductDetail() {
                 <div style={{fontSize:'2rem', fontWeight:700, color:'#22c55e'}}>
                   £{Math.min(...validHistory.map(h => h.price)).toFixed(2)}
                 </div>
+		<div style={{fontSize:'0.75rem', color:'#aaa', marginTop:'0.2rem'}}>
+                    {new Date(validHistory.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b).scraped_at).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
+                </div>  
               </div>
               <div>
                 <div style={{fontSize:'0.75rem', color:'#aaa', marginBottom:'0.2rem'}}>HIGHEST</div>
                 <div style={{fontSize:'2rem', fontWeight:700, color:'#ef4444'}}>
                   £{Math.max(...validHistory.map(h => h.price)).toFixed(2)}
                 </div>
+		<div style={{fontSize:'0.75rem', color:'#aaa', marginTop:'0.2rem'}}>
+                    {new Date(validHistory.reduce((a, b) => parseFloat(a.price) > parseFloat(b.price) ? a : b).scraped_at).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
+                </div>  
               </div>
             </>
           )}
