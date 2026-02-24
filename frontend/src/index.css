@@ -1,0 +1,132 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f5f7fb;
+  color: #1a1a2e;
+  min-height: 100vh;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+/* Layout */
+.page { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+.page-title { font-size: 1.8rem; font-weight: 700; margin-bottom: 1.5rem; }
+
+/* Cards */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: #6366f1; color: white; }
+.btn-danger { background: #ef4444; color: white; }
+.btn-ghost { background: transparent; color: #6366f1; border: 1px solid #6366f1; }
+.btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+
+/* Forms */
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+.form-group label { font-size: 0.85rem; font-weight: 600; color: #555; }
+.form-group input, .form-group select {
+  padding: 0.65rem 0.9rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.form-group input:focus, .form-group select:focus { border-color: #6366f1; }
+
+/* Auth pages */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+.auth-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.auth-card h1 { font-size: 1.6rem; margin-bottom: 0.3rem; }
+.auth-card p { color: #888; margin-bottom: 1.8rem; font-size: 0.9rem; }
+.auth-link { text-align: center; margin-top: 1.2rem; font-size: 0.9rem; color: #666; }
+.auth-link a { color: #6366f1; text-decoration: none; font-weight: 600; }
+.error-msg { background: #fef2f2; color: #dc2626; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.875rem; margin-bottom: 1rem; }
+
+/* Navbar */
+.navbar {
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 1.5rem;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.navbar-brand { font-weight: 700; font-size: 1.1rem; color: #6366f1; text-decoration: none; }
+.navbar-links { display: flex; align-items: center; gap: 1rem; }
+
+/* Product grid */
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem; }
+.product-card { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+.product-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.product-card h3 { font-size: 1rem; margin-bottom: 0.3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.product-card .url { font-size: 0.75rem; color: #999; margin-bottom: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.price-badge { font-size: 1.4rem; font-weight: 700; color: #6366f1; }
+.price-meta { font-size: 0.75rem; color: #aaa; margin-top: 0.2rem; }
+.no-data { color: #aaa; font-size: 0.85rem; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.status-dot.active { background: #22c55e; }
+.status-dot.inactive { background: #d1d5db; }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.modal {
+  background: white; border-radius: 16px;
+  padding: 2rem; width: 100%; max-width: 500px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.modal h2 { margin-bottom: 1.5rem; }
+.modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; }
+
+/* Table */
+.table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.table th { text-align: left; padding: 0.75rem 1rem; background: #f8fafc; color: #666; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.table td { padding: 0.85rem 1rem; border-top: 1px solid #f1f5f9; }
