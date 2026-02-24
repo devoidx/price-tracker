@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getProducts, getPriceHistory, triggerScrape, deleteProduct } from '../api'
 import PriceChart from '../components/PriceChart'
-import { RefreshCw, Trash2, ArrowLeft, AlertCircle } from 'lucide-react'
+import EditProductModal from '../components/EditProductModal'
+import { RefreshCw, Trash2, ArrowLeft, AlertCircle, Pencil } from 'lucide-react'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -11,6 +12,7 @@ export default function ProductDetail() {
   const queryClient = useQueryClient()
   const [scraping, setScraping] = useState(false)
   const [scrapeMsg, setScrapeMsg] = useState('')
+  const [showEdit, setShowEdit] = useState(false)
 
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: () => getProducts().then(r => r.data) })
   const product = products.find(p => p.id === parseInt(id))
@@ -61,6 +63,9 @@ export default function ProductDetail() {
             <a href={product.url} target="_blank" rel="noreferrer" style={{color:'#888', fontSize:'0.82rem', wordBreak:'break-all'}}>{product.url}</a>
           </div>
           <div style={{display:'flex', gap:'0.75rem'}}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowEdit(true)}>
+              <Pencil size={14} /> Edit
+            </button>
             <button className="btn btn-ghost btn-sm" onClick={handleScrape} disabled={scraping}>
               <RefreshCw size={14} /> {scraping ? 'Scraping...' : 'Scrape now'}
             </button>
@@ -84,20 +89,20 @@ export default function ProductDetail() {
               <div>
                 <div style={{fontSize:'0.75rem', color:'#aaa', marginBottom:'0.2rem'}}>LOWEST</div>
                 <div style={{fontSize:'2rem', fontWeight:700, color:'#22c55e'}}>
-                  £{Math.min(...validHistory.map(h => h.price)).toFixed(2)}
+                  £{Math.min(...validHistory.map(h => parseFloat(h.price))).toFixed(2)}
                 </div>
-		<div style={{fontSize:'0.75rem', color:'#aaa', marginTop:'0.2rem'}}>
-                    {new Date(validHistory.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b).scraped_at).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
-                </div>  
+                <div style={{fontSize:'0.75rem', color:'#aaa', marginTop:'0.2rem'}}>
+                  {new Date(validHistory.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b).scraped_at).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
+                </div>
               </div>
               <div>
                 <div style={{fontSize:'0.75rem', color:'#aaa', marginBottom:'0.2rem'}}>HIGHEST</div>
                 <div style={{fontSize:'2rem', fontWeight:700, color:'#ef4444'}}>
-                  £{Math.max(...validHistory.map(h => h.price)).toFixed(2)}
+                  £{Math.max(...validHistory.map(h => parseFloat(h.price))).toFixed(2)}
                 </div>
-		<div style={{fontSize:'0.75rem', color:'#aaa', marginTop:'0.2rem'}}>
-                    {new Date(validHistory.reduce((a, b) => parseFloat(a.price) > parseFloat(b.price) ? a : b).scraped_at).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
-                </div>  
+                <div style={{fontSize:'0.75rem', color:'#aaa', marginTop:'0.2rem'}}>
+                  {new Date(validHistory.reduce((a, b) => parseFloat(a.price) > parseFloat(b.price) ? a : b).scraped_at).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
+                </div>
               </div>
             </>
           )}
@@ -130,6 +135,17 @@ export default function ProductDetail() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {showEdit && (
+        <EditProductModal
+          product={product}
+          onClose={() => setShowEdit(false)}
+          onUpdated={() => {
+            queryClient.invalidateQueries(['products'])
+            setShowEdit(false)
+          }}
+        />
       )}
     </div>
   )

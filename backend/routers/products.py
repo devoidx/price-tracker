@@ -27,7 +27,7 @@ def add_product(product: schemas.ProductCreate, db: Session = Depends(get_db), c
     return new_product
 
 @router.patch("/{product_id}", response_model=schemas.ProductOut)
-def update_product(product_id: int, updates: schemas.ProductCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+def update_product(product_id: int, updates: schemas.ProductUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     product = db.query(models.Product).filter(models.Product.id == product_id, models.Product.user_id == current_user.id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -35,7 +35,7 @@ def update_product(product_id: int, updates: schemas.ProductCreate, db: Session 
         setattr(product, key, value)
     db.commit()
     db.refresh(product)
-    schedule_product(product)  # <- reschedule with updated interval
+    schedule_product(product)
     return product
 
 @router.delete("/{product_id}")

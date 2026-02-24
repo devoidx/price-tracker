@@ -44,6 +44,13 @@ class ProductOut(BaseModel):
     class Config:
         from_attributes = True
 
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    url: Optional[str] = None
+    selector: Optional[str] = None
+    interval_minutes: Optional[int] = None
+    active: Optional[bool] = None
+
 # --- Price history schemas ---
 class PriceHistoryOut(BaseModel):
     id: int
