@@ -187,6 +187,7 @@ price-tracker/
 │       │   ├── Navbar.jsx
 │       │   ├── ProductCard.jsx
 │       │   ├── AddProductModal.jsx
+│       │   ├── EditProductModal.jsx
 │       │   └── PriceChart.jsx
 │       └── pages/
 │           ├── Login.jsx
