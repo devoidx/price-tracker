@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Box, Button, FormControl, FormLabel, Input, VStack, Heading, Text, Alert, AlertIcon } from '@chakra-ui/react'
 import { register, login, getMe } from '../api'
 import { useAuth } from '../context/AuthContext'
 
@@ -29,32 +30,39 @@ export default function Register() {
   }
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1>Create account</h1>
-        <p>Start tracking prices today</p>
-        {error && <div className="error-msg">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Username</label>
-            <input value={form.username} onChange={e => setForm({...form, username: e.target.value})} required autoFocus />
-          </div>
-          <div className="form-group">
-            <label>Email</label>
-            <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} required />
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} required />
-          </div>
-          <button className="btn btn-primary" style={{width:'100%', justifyContent:'center', padding:'0.75rem'}} disabled={loading}>
-            {loading ? 'Creating account...' : 'Create account'}
-          </button>
-        </form>
-        <div className="auth-link">
-          Already have an account? <Link to="/login">Sign in</Link>
-        </div>
-      </div>
-    </div>
+    <Box minH="100vh" bg="linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)" display="flex" alignItems="center" justifyContent="center">
+      <Box bg="white" borderRadius="2xl" p={10} w="100%" maxW="420px" boxShadow="2xl">
+        <VStack spacing={6} align="stretch">
+          <Box>
+            <Heading size="lg" mb={1}>Create account</Heading>
+            <Text color="gray.500" fontSize="sm">Start tracking prices today</Text>
+          </Box>
+          {error && <Alert status="error" borderRadius="md"><AlertIcon />{error}</Alert>}
+          <form onSubmit={handleSubmit}>
+            <VStack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">Username</FormLabel>
+                <Input value={form.username} onChange={e => setForm({...form, username: e.target.value})} autoFocus focusBorderColor="brand.500" />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">Email</FormLabel>
+                <Input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} focusBorderColor="brand.500" />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">Password</FormLabel>
+                <Input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} focusBorderColor="brand.500" />
+              </FormControl>
+              <Button type="submit" colorScheme="brand" width="100%" isLoading={loading} loadingText="Creating account...">
+                Create account
+              </Button>
+            </VStack>
+          </form>
+          <Text textAlign="center" fontSize="sm" color="gray.500">
+            Already have an account?{' '}
+            <Text as={Link} to="/login" color="brand.500" fontWeight={600}>Sign in</Text>
+          </Text>
+        </VStack>
+      </Box>
+    </Box>
   )
 }

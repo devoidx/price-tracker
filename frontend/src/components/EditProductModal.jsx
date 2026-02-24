@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, FormControl, FormLabel, FormHelperText, Input, Select, VStack, Alert, AlertIcon } from '@chakra-ui/react'
 import { updateProduct } from '../api'
 
 export default function EditProductModal({ product, onClose, onUpdated }) {
@@ -17,13 +18,12 @@ export default function EditProductModal({ product, onClose, onUpdated }) {
     setLoading(true)
     setError('')
     try {
-      const res = await updateProduct(product.id, {
+      await updateProduct(product.id, {
         ...form,
         selector: form.selector || null,
         interval_minutes: parseInt(form.interval_minutes),
       })
-      onUpdated(res.data)
-      onClose()
+      onUpdated()
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to update product')
     } finally {
@@ -32,49 +32,55 @@ export default function EditProductModal({ product, onClose, onUpdated }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <h2>Edit product</h2>
-        {error && <div className="error-msg">{error}</div>}
+    <Modal isOpen onClose={onClose} size="md">
+      <ModalOverlay />
+      <ModalContent borderRadius="xl">
+        <ModalHeader>Edit product</ModalHeader>
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Name</label>
-            <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required autoFocus />
-          </div>
-          <div className="form-group">
-            <label>URL</label>
-            <input value={form.url} onChange={e => setForm({...form, url: e.target.value})} required />
-          </div>
-          <div className="form-group">
-            <label>CSS Selector <span style={{color:'#aaa', fontWeight:400}}>(optional)</span></label>
-            <input placeholder=".a-price .a-offscreen" value={form.selector} onChange={e => setForm({...form, selector: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Check every</label>
-            <select value={form.interval_minutes} onChange={e => setForm({...form, interval_minutes: e.target.value})}>
-              <option value={15}>15 minutes</option>
-              <option value={30}>30 minutes</option>
-              <option value={60}>1 hour</option>
-              <option value={360}>6 hours</option>
-              <option value={720}>12 hours</option>
-              <option value={1440}>24 hours</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Status</label>
-            <select value={form.active} onChange={e => setForm({...form, active: e.target.value === 'true'})}>
-              <option value="true">Active</option>
-              <option value="false">Paused</option>
-            </select>
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Saving...' : 'Save changes'}
-            </button>
-          </div>
+          <ModalBody>
+            <VStack spacing={4}>
+              {error && <Alert status="error" borderRadius="md"><AlertIcon />{error}</Alert>}
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">Name</FormLabel>
+                <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} focusBorderColor="brand.500" autoFocus />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">URL</FormLabel>
+                <Input value={form.url} onChange={e => setForm({...form, url: e.target.value})} focusBorderColor="brand.500" />
+              </FormControl>
+              <FormControl>
+                <FormLabel fontSize="sm">CSS Selector</FormLabel>
+                <Input placeholder=".a-price .a-offscreen" value={form.selector} onChange={e => setForm({...form, selector: e.target.value})} focusBorderColor="brand.500" />
+                <FormHelperText>Optional — leave blank to auto-detect</FormHelperText>
+              </FormControl>
+              <FormControl>
+                <FormLabel fontSize="sm">Check every</FormLabel>
+                <Select value={form.interval_minutes} onChange={e => setForm({...form, interval_minutes: e.target.value})} focusBorderColor="brand.500">
+                  <option value={15}>15 minutes</option>
+                  <option value={30}>30 minutes</option>
+                  <option value={60}>1 hour</option>
+                  <option value={360}>6 hours</option>
+                  <option value={720}>12 hours</option>
+                  <option value={1440}>24 hours</option>
+                </Select>
+              </FormControl>
+              <FormControl>
+                <FormLabel fontSize="sm">Status</FormLabel>
+                <Select value={form.active} onChange={e => setForm({...form, active: e.target.value === 'true'})} focusBorderColor="brand.500">
+                  <option value="true">Active</option>
+                  <option value="false">Paused</option>
+                </Select>
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter gap={3}>
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button type="submit" colorScheme="brand" isLoading={loading} loadingText="Saving...">
+              Save changes
+            </Button>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalContent>
+    </Modal>
   )
 }

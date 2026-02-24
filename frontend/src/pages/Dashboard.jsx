@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Box, Button, Grid, Heading, Text, VStack, Icon } from '@chakra-ui/react'
 import { getProducts, getPriceHistory } from '../api'
 import { useAuth } from '../context/AuthContext'
 import ProductCard from '../components/ProductCard'
 import AddProductModal from '../components/AddProductModal'
-import { Plus } from 'lucide-react'
+import { Plus, Package } from 'lucide-react'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -16,7 +17,6 @@ export default function Dashboard() {
     queryFn: () => getProducts().then(r => r.data)
   })
 
-  // Fetch latest price for each product
   const { data: latestPrices = {} } = useQuery({
     queryKey: ['latestPrices', products.map(p => p.id)],
     queryFn: async () => {
@@ -31,42 +31,45 @@ export default function Dashboard() {
     enabled: products.length > 0
   })
 
-  const handleAdded = (product) => {
-    queryClient.invalidateQueries(['products'])
-  }
-
   return (
-    <div className="page">
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem'}}>
-        <div>
-          <h1 className="page-title" style={{marginBottom:0}}>Dashboard</h1>
-          <p style={{color:'#888', fontSize:'0.9rem'}}>Welcome back, {user.username}</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          <Plus size={16} /> Track product
-        </button>
-      </div>
+    <Box maxW="1100px" mx="auto" px={6} py={8}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={8}>
+        <Box>
+          <Heading size="lg" mb={1}>Dashboard</Heading>
+          <Text color="gray.500" fontSize="sm">Welcome back, {user.username}</Text>
+        </Box>
+        <Button colorScheme="brand" leftIcon={<Plus size={16} />} onClick={() => setShowModal(true)}>
+          Track product
+        </Button>
+      </Box>
 
       {isLoading ? (
-        <div className="loading" style={{height:'200px'}}>Loading...</div>
+        <Text color="gray.400">Loading...</Text>
       ) : products.length === 0 ? (
-        <div className="card" style={{textAlign:'center', padding:'3rem', color:'#888'}}>
-          <div style={{fontSize:'3rem', marginBottom:'1rem'}}>📦</div>
-          <div style={{fontWeight:600, marginBottom:'0.5rem'}}>No products tracked yet</div>
-          <div style={{fontSize:'0.9rem', marginBottom:'1.5rem'}}>Add your first product to start tracking prices</div>
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            <Plus size={16} /> Track your first product
-          </button>
-        </div>
+        <Box bg="white" borderRadius="xl" p={12} textAlign="center" boxShadow="sm">
+          <VStack spacing={4}>
+            <Icon as={Package} boxSize={12} color="gray.300" />
+            <Heading size="md" color="gray.500">No products tracked yet</Heading>
+            <Text color="gray.400" fontSize="sm">Add your first product to start tracking prices</Text>
+            <Button colorScheme="brand" leftIcon={<Plus size={16} />} onClick={() => setShowModal(true)}>
+              Track your first product
+            </Button>
+          </VStack>
+        </Box>
       ) : (
-        <div className="product-grid">
+        <Grid templateColumns="repeat(auto-fill, minmax(300px, 1fr))" gap={5}>
           {products.map(p => (
             <ProductCard key={p.id} product={p} latestPrice={latestPrices[p.id]} />
           ))}
-        </div>
+        </Grid>
       )}
 
-      {showModal && <AddProductModal onClose={() => setShowModal(false)} onAdded={handleAdded} />}
-    </div>
+      {showModal && (
+        <AddProductModal
+          onClose={() => setShowModal(false)}
+          onAdded={() => { queryClient.invalidateQueries(['products']); setShowModal(false) }}
+        />
+      )}
+    </Box>
   )
 }

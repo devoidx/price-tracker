@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Box, Heading, Button, Badge, Table, Thead, Tbody, Tr, Th, Td, HStack, Text } from '@chakra-ui/react'
 import { getAdminUsers, getAdminProducts, deactivateUser } from '../api'
 import { UserX } from 'lucide-react'
 
@@ -15,62 +16,52 @@ export default function Admin() {
   }
 
   return (
-    <div className="page">
-      <h1 className="page-title">Admin panel</h1>
+    <Box maxW="1100px" mx="auto" px={6} py={8}>
+      <Heading size="lg" mb={8}>Admin panel</Heading>
 
-      <div className="card" style={{marginBottom:'1.25rem'}}>
-        <h2 style={{marginBottom:'1rem', fontSize:'1rem', fontWeight:600}}>Users ({users.length})</h2>
-        <table className="table">
-          <thead>
-            <tr><th>Username</th><th>Email</th><th>Admin</th><th>Status</th><th>Joined</th><th></th></tr>
-          </thead>
-          <tbody>
+      <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
+        <Heading size="sm" mb={4}>Users ({users.length})</Heading>
+        <Table size="sm">
+          <Thead><Tr><Th>Username</Th><Th>Email</Th><Th>Admin</Th><Th>Status</Th><Th>Joined</Th><Th></Th></Tr></Thead>
+          <Tbody>
             {users.map(u => (
-              <tr key={u.id}>
-                <td style={{fontWeight:500}}>{u.username}</td>
-                <td style={{color:'#888'}}>{u.email}</td>
-                <td>{u.is_admin ? '✅' : '—'}</td>
-                <td>
-                  <span style={{color: u.active ? '#22c55e' : '#d1d5db', fontWeight:600, fontSize:'0.8rem'}}>
-                    {u.active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td style={{color:'#aaa', fontSize:'0.8rem'}}>{new Date(u.created_at).toLocaleDateString()}</td>
-                <td>
+              <Tr key={u.id}>
+                <Td fontWeight={500}>{u.username}</Td>
+                <Td color="gray.500">{u.email}</Td>
+                <Td>{u.is_admin ? '✅' : '—'}</Td>
+                <Td>
+                  <Badge colorScheme={u.active ? 'green' : 'gray'}>{u.active ? 'Active' : 'Inactive'}</Badge>
+                </Td>
+                <Td fontSize="xs" color="gray.400">{new Date(u.created_at).toLocaleDateString()}</Td>
+                <Td>
                   {u.active && !u.is_admin && (
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(u.id, u.username)}>
-                      <UserX size={13} /> Deactivate
-                    </button>
+                    <Button size="xs" colorScheme="red" leftIcon={<UserX size={12} />} onClick={() => handleDeactivate(u.id, u.username)}>
+                      Deactivate
+                    </Button>
                   )}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </Tbody>
+        </Table>
+      </Box>
 
-      <div className="card">
-        <h2 style={{marginBottom:'1rem', fontSize:'1rem', fontWeight:600}}>All tracked products ({products.length})</h2>
-        <table className="table">
-          <thead>
-            <tr><th>Name</th><th>URL</th><th>Interval</th><th>Status</th></tr>
-          </thead>
-          <tbody>
+      <Box bg="white" borderRadius="xl" p={6} boxShadow="sm">
+        <Heading size="sm" mb={4}>All tracked products ({products.length})</Heading>
+        <Table size="sm">
+          <Thead><Tr><Th>Name</Th><Th>URL</Th><Th>Interval</Th><Th>Status</Th></Tr></Thead>
+          <Tbody>
             {products.map(p => (
-              <tr key={p.id}>
-                <td style={{fontWeight:500}}>{p.name}</td>
-                <td style={{color:'#888', fontSize:'0.8rem', maxWidth:'300px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{p.url}</td>
-                <td>{p.interval_minutes < 60 ? `${p.interval_minutes}m` : `${p.interval_minutes/60}h`}</td>
-                <td>
-                  <span style={{color: p.active ? '#22c55e' : '#d1d5db', fontWeight:600, fontSize:'0.8rem'}}>
-                    {p.active ? 'Active' : 'Paused'}
-                  </span>
-                </td>
-              </tr>
+              <Tr key={p.id}>
+                <Td fontWeight={500}>{p.name}</Td>
+                <Td fontSize="xs" color="gray.400" maxW="300px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">{p.url}</Td>
+                <Td><Badge colorScheme="purple" variant="subtle">{p.interval_minutes < 60 ? `${p.interval_minutes}m` : `${p.interval_minutes/60}h`}</Badge></Td>
+                <Td><Badge colorScheme={p.active ? 'green' : 'gray'}>{p.active ? 'Active' : 'Paused'}</Badge></Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          </Tbody>
+        </Table>
+      </Box>
+    </Box>
   )
 }
