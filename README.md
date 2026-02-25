@@ -2,7 +2,7 @@
 
 A self-hosted price tracking application that monitors product prices over time and displays historical trends. Built with FastAPI, React, PostgreSQL, and Playwright.
 
-![Python](https://img.shields.io/badge/Python-3.12-blue) ![React](https://img.shields.io/badge/React-18-61dafb) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ed) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
+![Python](https://img.shields.io/badge/Python-3.12-blue) ![React](https://img.shields.io/badge/React-18-61dafb) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ed) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791) ![Chakra UI](https://img.shields.io/badge/Chakra_UI-2.x-319795)
 
 ---
 
@@ -10,7 +10,8 @@ A self-hosted price tracking application that monitors product prices over time 
 
 - **Track any product URL** — add a URL and a CSS selector to extract the price from any retail site
 - **Scheduled scraping** — each product has its own configurable check interval (15 minutes to 24 hours)
-- **Price history graphs** — visualise how prices change over time with min/max stats
+- **Edit tracked products** — update the name, URL, CSS selector, interval, or pause tracking at any time
+- **Price history graphs** — visualise how prices change over time with current, lowest, and highest price stats including the dates they occurred
 - **Multi-user support** — each user has their own tracked products and price history
 - **Admin panel** — manage users and view all tracked products across the platform
 - **Manual scrape trigger** — scrape any product on demand without waiting for the schedule
@@ -22,7 +23,7 @@ A self-hosted price tracking application that monitors product prices over time 
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 18, Vite, Recharts, React Query |
+| Frontend | React 18, Vite, Chakra UI, Recharts, React Query |
 | Backend | Python 3.12, FastAPI, APScheduler |
 | Scraping | Playwright (headless Chromium) |
 | Database | PostgreSQL 16 |
@@ -100,6 +101,15 @@ The first build takes a few minutes as it downloads Playwright and Chromium.
 3. Optionally provide a CSS selector for the price element (see below)
 4. Choose how often to check the price
 
+### Editing a tracked product
+
+1. Click on any product card to open the detail page
+2. Click the **Edit** button
+3. Update any field — name, URL, selector, interval, or active status
+4. Click **Save changes**
+
+Changing the interval takes effect immediately — the scheduler is updated without needing a restart.
+
 ### Finding a CSS selector
 
 The CSS selector tells the scraper where to find the price on the page.
@@ -120,6 +130,10 @@ Some common selectors for popular UK retailers:
 
 If no selector is provided, the scraper will attempt to detect the price automatically.
 
+### Pausing tracking
+
+To pause scraping without deleting a product and its history, click **Edit** on the product detail page and set the status to **Paused**. Set it back to **Active** to resume.
+
 ### Running in the background
 
 ```bash
@@ -130,6 +144,44 @@ docker compose up -d
 
 ```bash
 docker compose logs -f backend
+```
+
+---
+
+## Customisation
+
+### Changing the colour scheme
+
+The theme is defined in `frontend/src/main.jsx`. Update the `brand` colour object to any colour scale you like:
+
+```javascript
+const theme = extendTheme({
+  colors: {
+    brand: {
+      50:  '#e6fffa',
+      100: '#b2f5ea',
+      500: '#319795',
+      600: '#2c7a7b',
+      700: '#285e61',
+    }
+  }
+})
+```
+
+Generate a full palette for any colour at [tints.dev](https://www.tints.dev).
+
+### Changing the logo
+
+Place your image in `frontend/public/` (e.g. `logo.jpg`) and update the `src` in `frontend/src/components/Navbar.jsx`:
+
+```jsx
+<img src="/logo.jpg" alt="Logo" style={{ height: '36px', width: 'auto', borderRadius: '6px' }} />
+```
+
+After any frontend changes, rebuild:
+
+```bash
+docker compose up --build -d frontend
 ```
 
 ---
@@ -176,10 +228,14 @@ docker compose up
 price-tracker/
 ├── docker-compose.yml
 ├── .env
+├── .env.example
 ├── frontend/
 │   ├── Dockerfile
 │   ├── nginx.conf
 │   └── src/
+│       ├── main.jsx            # App entry point + Chakra theme
+│       ├── App.jsx             # Routes + auth guards
+│       ├── index.css           # Minimal global styles
 │       ├── api.js              # All API calls
 │       ├── context/
 │       │   └── AuthContext.jsx # Auth state
@@ -198,7 +254,7 @@ price-tracker/
 └── backend/
     ├── Dockerfile
     ├── requirements.txt
-    ├── main.py                 # App entry point
+    ├── main.py                 # App entry point + scheduler startup
     ├── database.py             # DB connection
     ├── models.py               # SQLAlchemy models
     ├── schemas.py              # Pydantic schemas
@@ -206,12 +262,12 @@ price-tracker/
     ├── scraper.py              # Playwright scraper
     ├── scheduler.py            # APScheduler jobs
     ├── db/
-    │   └── init.sql            # Database schema
+    │   └── init.sql            # Database schema + default admin user
     └── routers/
-        ├── users.py
-        ├── products.py
-        ├── prices.py
-        └── admin.py
+        ├── users.py            # Register, login, /me
+        ├── products.py         # CRUD + scheduler integration
+        ├── prices.py           # Price history + manual scrape trigger
+        └── admin.py            # User and product management
 ```
 
 ---
@@ -224,7 +280,16 @@ price-tracker/
 
 **Site returns empty page or CAPTCHA** — the site may be detecting the headless browser. Some sites (particularly Amazon) actively block scrapers and may require selector updates periodically.
 
+**Default admin login fails** — the bcrypt hash in `init.sql` may not match your environment. Generate a fresh one and update the database:
+
+```bash
+docker compose exec backend python3 -c "from passlib.context import CryptContext; ctx = CryptContext(schemes=['bcrypt'], deprecated='auto'); print(ctx.hash('changeme'))"
+docker compose exec db psql -U tracker -d pricetracker -c "UPDATE users SET password_hash = '\$2b\$12\$<your-hash>' WHERE username = 'admin';"
+```
+
 **Container won't start** — check logs with `docker compose logs backend`. Common causes are database connection issues on first startup; the healthcheck should handle this but try `docker compose restart backend` if needed.
+
+**Frontend showing stale UI after rebuild** — force a hard refresh with `Ctrl + Shift + R` or open in a private/incognito window.
 
 ---
 
