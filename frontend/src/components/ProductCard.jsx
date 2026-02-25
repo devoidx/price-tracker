@@ -6,7 +6,7 @@ export default function ProductCard({ product, latestPrice }) {
 
   return (
     <Box
-      bg="white" borderRadius="xl" p={6} boxShadow="sm" cursor="pointer"
+      bg="#b2f5ea" borderRadius="xl" p={6} boxShadow="sm" cursor="pointer"
       transition="all 0.15s" _hover={{ transform: 'translateY(-2px)', boxShadow: 'md' }}
       onClick={() => navigate(`/products/${product.id}`)}
     >

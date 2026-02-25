@@ -30,7 +30,7 @@ export default function Login() {
   }
 
   return (
-    <Box minH="100vh" bg="linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)" display="flex" alignItems="center" justifyContent="center">
+    <Box minH="100vh" bg="linear-gradient(135deg, #319795 0%, #38b2ac 100%)" display="flex" alignItems="center" justifyContent="center">
       <Box bg="white" borderRadius="2xl" p={10} w="100%" maxW="420px" boxShadow="2xl">
         <VStack spacing={6} align="stretch">
           <Box>

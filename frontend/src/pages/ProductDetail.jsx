@@ -59,7 +59,7 @@ export default function ProductDetail() {
         Back
       </Button>
 
-      <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
+      <Box bg="#b2f5ea" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={4} mb={6}>
           <Box>
             <Heading size="md" mb={1}>{product.name}</Heading>

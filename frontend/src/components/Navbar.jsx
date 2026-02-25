@@ -13,25 +13,25 @@ export default function Navbar() {
   }
 
   return (
-    <Box bg="white" borderBottom="1px" borderColor="gray.200" px={6} position="sticky" top={0} zIndex={100}>
+    <Box bg="brand.600" px={6} position="sticky" top={0} zIndex={100}>
       <Flex h="60px" align="center" justify="space-between">
-        <Text as={Link} to="/" fontWeight={700} fontSize="lg" color="brand.500" textDecoration="none">
-          📈 PriceTracker
-        </Text>
-        <HStack spacing={3}>
-          <Button as={Link} to="/" variant="outline" colorScheme="brand" size="sm" leftIcon={<LayoutDashboard size={14} />}>
-            Dashboard
-          </Button>
-          {user?.is_admin && (
-            <Button as={Link} to="/admin" variant="outline" colorScheme="brand" size="sm" leftIcon={<Shield size={14} />}>
-              Admin
-            </Button>
-          )}
-          <Button variant="outline" colorScheme="brand" size="sm" leftIcon={<LogOut size={14} />} onClick={handleLogout}>
-            Logout
-          </Button>
-        </HStack>
-      </Flex>
+      <Box as={Link} to="/" display="flex" alignItems="center" gap={3} textDecoration="none">
+      <img src="/pt2.png" alt="PriceTracker" style={{ height: '54px', width: '240px', borderRadius: '6px' }} />
     </Box>
+    <HStack spacing={3}>
+      <Button as={Link} to="/" variant="ghost" color="white" _hover={{ bg: 'brand.700' }} size="sm" leftIcon={<LayoutDashboard size={14} />}>
+        Dashboard
+      </Button>
+      {user?.is_admin && (
+        <Button as={Link} to="/admin" variant="ghost" color="white" _hover={{ bg: 'brand.700' }} size="sm" leftIcon={<Shield size={14} />}>
+          Admin
+        </Button>
+      )}
+      <Button variant="ghost" color="white" _hover={{ bg: 'brand.700' }} size="sm" leftIcon={<LogOut size={14} />} onClick={handleLogout}>
+        Logout
+      </Button>
+    </HStack>
+  </Flex>
+</Box>
   )
 }
