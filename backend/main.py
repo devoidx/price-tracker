@@ -1,9 +1,15 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from routers import users, products, prices, admin
 from scheduler import start_scheduler
 from database import SessionLocal
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

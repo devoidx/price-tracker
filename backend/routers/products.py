@@ -28,14 +28,17 @@ def add_product(product: schemas.ProductCreate, db: Session = Depends(get_db), c
 
 @router.patch("/{product_id}", response_model=schemas.ProductOut)
 def update_product(product_id: int, updates: schemas.ProductUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    product = db.query(models.Product).filter(models.Product.id == product_id, models.Product.user_id == current_user.id).first()
+    product = db.query(models.Product).filter(
+        models.Product.id == product_id,
+        models.Product.user_id == current_user.id
+    ).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     for key, value in updates.model_dump(exclude_unset=True).items():
         setattr(product, key, value)
     db.commit()
-    db.refresh(product)
-    schedule_product(product)
+    db.refresh(product)      # ensure we have the latest data
+    schedule_product(product) # reschedule AFTER commit
     return product
 
 @router.delete("/{product_id}")

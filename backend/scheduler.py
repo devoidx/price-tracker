@@ -21,14 +21,18 @@ def run_scrape_job(product_id: int):
     finally:
         db.close()
 
-
 def schedule_product(product: models.Product):
     """Add or replace a scheduled job for a product."""
     job_id = f"product_{product.id}"
-    if scheduler.get_job(job_id):
-        scheduler.remove_job(job_id)
+
+    # Always remove the existing job first
+    existing = scheduler.get_job(job_id)
+    if existing:
+        existing.remove()
+        logger.info(f"Removed existing job for product {product.id}")
 
     if not product.active:
+        logger.info(f"Product {product.id} is inactive, not scheduling")
         return
 
     scheduler.add_job(
@@ -36,11 +40,9 @@ def schedule_product(product: models.Product):
         trigger=IntervalTrigger(minutes=product.interval_minutes),
         args=[product.id],
         id=job_id,
-        replace_existing=True,
-        max_instances=1,  # Prevent overlapping runs for the same product
+        max_instances=1,
     )
-    logger.info(f"Scheduled product {product.id} every {product.interval_minutes} minutes")
-
+    logger.info(f"Scheduled product {product.id} ({product.name}) every {product.interval_minutes} minutes")
 
 def unschedule_product(product_id: int):
     job_id = f"product_{product_id}"
