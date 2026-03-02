@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from routers import users, products, prices, admin
+from routers import users, products, prices, admin, alerts
 from scheduler import start_scheduler
 from database import SessionLocal
 
@@ -36,6 +36,7 @@ app.include_router(users.router)
 app.include_router(products.router)
 app.include_router(prices.router)
 app.include_router(admin.router)
+app.include_router(alerts.router)
 
 @app.get("/health")
 def health():

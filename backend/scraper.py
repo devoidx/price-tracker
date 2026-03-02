@@ -137,3 +137,11 @@ def scrape_and_save(product_id: int, db: Session):
     db.add(entry)
     db.commit()
     logger.info(f"Saved price for {product.name}: {result}")
+
+    # Check alerts if we got a valid price
+    if result["price"] is not None:
+        try:
+            from alerts import check_alerts
+            check_alerts(product_id, result["price"], db)
+        except Exception as e:
+            logger.error(f"Alert check failed for product {product_id}: {e}")

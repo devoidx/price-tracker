@@ -12,6 +12,7 @@ A self-hosted price tracking application that monitors product prices over time 
 - **Scheduled scraping** — each product has its own configurable check interval (15 minutes to 24 hours)
 - **Edit tracked products** — update the name, URL, CSS selector, interval, or pause tracking at any time
 - **Price history graphs** — visualise how prices change over time with current, lowest, and highest price stats including the dates they occurred
+- **Price alerts** — get email notifications when a price drops below a target, hits a new all-time low, or decreases since the last check
 - **Multi-user support** — each user has their own tracked products and price history
 - **Admin panel** — manage users and view all tracked products across the platform
 - **Manual scrape trigger** — scrape any product on demand without waiting for the schedule
@@ -28,6 +29,7 @@ A self-hosted price tracking application that monitors product prices over time 
 | Scraping | Playwright (headless Chromium) |
 | Database | PostgreSQL 16 |
 | Auth | JWT (python-jose) + bcrypt |
+| Notifications | Gmail SMTP (extensible to Telegram, Ntfy, Discord) |
 | Infrastructure | Docker Compose, Nginx |
 
 ---
@@ -42,53 +44,50 @@ A self-hosted price tracking application that monitors product prices over time 
 ### Installation
 
 1. **Clone the repository**
-
 ```bash
 git clone https://github.com/devoidx/price-tracker.git
 cd price-tracker
 ```
 
 2. **Create your `.env` file**
-
 ```bash
 cp .env.example .env
 ```
 
 Generate a secure secret key and add it to `.env`:
-
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Your `.env` should look like:
+3. **Configure email alerts (optional)**
 
-```
-SECRET_KEY=your-generated-secret-key-here
-```
+See the [Email Alerts](#email-alerts) section below for full setup instructions.
 
-3. **Build and start the application**
-
+4. **Build and start the application**
 ```bash
 docker compose up --build
 ```
 
 The first build takes a few minutes as it downloads Playwright and Chromium.
 
-4. **Access the app**
+5. **Access the app**
 
 | Service | URL |
 |---|---|
 | Frontend | http://localhost:3000 |
 | API docs | http://localhost:8000/docs |
 
-5. **Log in with the default admin account**
+6. **Log in with the default admin account**
 
 | Field | Value |
 |---|---|
 | Username | `admin` |
 | Password | `changeme` |
 
-> ⚠️ Change the admin password immediately after first login.
+> ⚠️ Change the admin password immediately after first login. Update the admin email address so alerts can be delivered:
+> ```bash
+> docker compose exec db psql -U tracker -d pricetracker -c "UPDATE users SET email = 'your@email.com' WHERE username = 'admin';"
+> ```
 
 ---
 
@@ -134,17 +133,91 @@ If no selector is provided, the scraper will attempt to detect the price automat
 
 To pause scraping without deleting a product and its history, click **Edit** on the product detail page and set the status to **Paused**. Set it back to **Active** to resume.
 
-### Running in the background
+### Setting up alerts
 
+On any product detail page, scroll down to the **Alerts** panel and click **Add alert**. Three alert types are available:
+
+| Alert type | Description |
+|---|---|
+| Price drops below a threshold | Notifies you when the price falls below a specific amount you set |
+| New all-time low | Notifies you when the product hits its lowest ever recorded price |
+| Any price decrease | Notifies you whenever the price drops compared to the previous scrape |
+
+Alerts can be toggled on/off or deleted at any time from the same panel.
+
+### Running in the background
 ```bash
 docker compose up -d
 ```
 
 ### Viewing logs
-
 ```bash
 docker compose logs -f backend
 ```
+
+---
+
+## Email Alerts
+
+Price Tracker uses Gmail to send alert notifications. You will need a Google account with 2-Step Verification enabled and a Gmail App Password.
+
+### Step 1 — Enable 2-Step Verification
+
+If you haven't already, enable 2-Step Verification on your Google account at [myaccount.google.com/security](https://myaccount.google.com/security). App Passwords are only available once this is enabled.
+
+### Step 2 — Generate a Gmail App Password
+
+1. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+2. Sign in if prompted
+3. In the **App name** field, type `Price Tracker`
+4. Click **Create**
+5. Google will display a 16-character password (e.g. `abcd efgh ijkl mnop`)
+6. Copy this password — you will not be able to see it again
+
+> ⚠️ This app password gives access to your Gmail account. Keep it secret and never commit it to version control.
+
+### Step 3 — Add credentials to your `.env` file
+```
+GMAIL_ADDRESS=your.gmail.address@gmail.com
+GMAIL_APP_PASSWORD=abcdefghijklmnop
+```
+
+Enter the 16-character app password without spaces.
+
+### Step 4 — Rebuild the backend
+```bash
+docker compose up --build -d backend
+```
+
+### Step 5 — Test the configuration
+
+1. Go to `http://localhost:8000/docs`
+2. Click **Authorize** and log in
+3. Find `POST /alerts/test-email` and click **Try it out** → **Execute**
+4. Check your inbox — a test alert email should arrive within a minute
+
+If the email doesn't arrive, check the backend logs:
+```bash
+docker compose logs backend | grep -i "email\|gmail\|notif"
+```
+
+### Adding other notification providers
+
+The notification system is designed to be extensible. To add a new provider (e.g. Telegram, Ntfy, Discord), create a new class in `backend/notifications.py` that extends `NotificationProvider` and implements the `send` method, then update `get_provider()`:
+```python
+class TelegramProvider(NotificationProvider):
+    def send(self, subject: str, body: str, recipient: str) -> bool:
+        # recipient is the Telegram chat_id
+        ...
+
+def get_provider() -> NotificationProvider:
+    provider = os.getenv("NOTIFICATION_PROVIDER", "gmail")
+    if provider == "telegram":
+        return TelegramProvider()
+    return GmailProvider()
+```
+
+No other files need to change — the alert logic and scraper are provider-agnostic.
 
 ---
 
@@ -152,8 +225,7 @@ docker compose logs -f backend
 
 ### Changing the colour scheme
 
-The theme is defined in `frontend/src/main.jsx`. Update the `brand` colour object to any colour scale you like:
-
+The theme is defined in `frontend/src/main.jsx`. Update the `brand` colour object:
 ```javascript
 const theme = extendTheme({
   colors: {
@@ -173,13 +245,11 @@ Generate a full palette for any colour at [tints.dev](https://www.tints.dev).
 ### Changing the logo
 
 Place your image in `frontend/public/` (e.g. `logo.jpg`) and update the `src` in `frontend/src/components/Navbar.jsx`:
-
 ```jsx
 <img src="/logo.jpg" alt="Logo" style={{ height: '36px', width: 'auto', borderRadius: '6px' }} />
 ```
 
 After any frontend changes, rebuild:
-
 ```bash
 docker compose up --build -d frontend
 ```
@@ -189,7 +259,6 @@ docker compose up --build -d frontend
 ## Accessing from other devices on your network
 
 Find your machine's local IP:
-
 ```bash
 ip addr show | grep "inet " | grep -v 127.0.0.1
 ```
@@ -201,7 +270,6 @@ Then visit `http://<your-ip>:3000` from any device on your network.
 ## Development
 
 The backend uses a bind mount, so code changes are picked up automatically with hot reload.
-
 ```bash
 # Start all services
 docker compose up
@@ -223,7 +291,6 @@ docker compose up
 ---
 
 ## Project Structure
-
 ```
 price-tracker/
 ├── docker-compose.yml
@@ -233,17 +300,18 @@ price-tracker/
 │   ├── Dockerfile
 │   ├── nginx.conf
 │   └── src/
-│       ├── main.jsx            # App entry point + Chakra theme
-│       ├── App.jsx             # Routes + auth guards
-│       ├── index.css           # Minimal global styles
-│       ├── api.js              # All API calls
+│       ├── main.jsx              # App entry point + Chakra theme
+│       ├── App.jsx               # Routes + auth guards
+│       ├── index.css             # Minimal global styles
+│       ├── api.js                # All API calls
 │       ├── context/
-│       │   └── AuthContext.jsx # Auth state
+│       │   └── AuthContext.jsx   # Auth state
 │       ├── components/
 │       │   ├── Navbar.jsx
 │       │   ├── ProductCard.jsx
 │       │   ├── AddProductModal.jsx
 │       │   ├── EditProductModal.jsx
+│       │   ├── AlertsPanel.jsx
 │       │   └── PriceChart.jsx
 │       └── pages/
 │           ├── Login.jsx
@@ -254,20 +322,23 @@ price-tracker/
 └── backend/
     ├── Dockerfile
     ├── requirements.txt
-    ├── main.py                 # App entry point + scheduler startup
-    ├── database.py             # DB connection
-    ├── models.py               # SQLAlchemy models
-    ├── schemas.py              # Pydantic schemas
-    ├── auth.py                 # JWT + password hashing
-    ├── scraper.py              # Playwright scraper
-    ├── scheduler.py            # APScheduler jobs
+    ├── main.py                   # App entry point + scheduler startup
+    ├── database.py               # DB connection
+    ├── models.py                 # SQLAlchemy models
+    ├── schemas.py                # Pydantic schemas
+    ├── auth.py                   # JWT + password hashing
+    ├── scraper.py                # Playwright scraper
+    ├── scheduler.py              # APScheduler jobs
+    ├── notifications.py          # Email/notification providers
+    ├── alerts.py                 # Alert checking logic
     ├── db/
-    │   └── init.sql            # Database schema + default admin user
+    │   └── init.sql              # Database schema + default admin user
     └── routers/
-        ├── users.py            # Register, login, /me
-        ├── products.py         # CRUD + scheduler integration
-        ├── prices.py           # Price history + manual scrape trigger
-        └── admin.py            # User and product management
+        ├── users.py              # Register, login, /me
+        ├── products.py           # CRUD + scheduler integration
+        ├── prices.py             # Price history + manual scrape trigger
+        ├── alerts.py             # Alert CRUD + test email
+        └── admin.py              # User and product management
 ```
 
 ---
@@ -281,11 +352,12 @@ price-tracker/
 **Site returns empty page or CAPTCHA** — the site may be detecting the headless browser. Some sites (particularly Amazon) actively block scrapers and may require selector updates periodically.
 
 **Default admin login fails** — the bcrypt hash in `init.sql` may not match your environment. Generate a fresh one and update the database:
-
 ```bash
 docker compose exec backend python3 -c "from passlib.context import CryptContext; ctx = CryptContext(schemes=['bcrypt'], deprecated='auto'); print(ctx.hash('changeme'))"
 docker compose exec db psql -U tracker -d pricetracker -c "UPDATE users SET password_hash = '\$2b\$12\$<your-hash>' WHERE username = 'admin';"
 ```
+
+**Alert emails not arriving** — check the backend logs with `docker compose logs backend | grep -i "email\|gmail"`. Common causes are an incorrect app password, 2-Step Verification not enabled, or the admin account email not being set. Use `POST /alerts/test-email` in the API docs to test the configuration.
 
 **Container won't start** — check logs with `docker compose logs backend`. Common causes are database connection issues on first startup; the healthcheck should handle this but try `docker compose restart backend` if needed.
 

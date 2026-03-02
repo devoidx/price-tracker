@@ -44,3 +44,18 @@ class PriceHistory(Base):
     error = Column(Text)
 
     product = relationship("Product", back_populates="price_history")
+
+class Alert(Base):
+    __tablename__ = "alerts"
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    alert_type = Column(String(20), nullable=False)  # 'price_drop' or 'all_time_low'
+    threshold = Column(Numeric(10, 2), nullable=True)  # only used for price_drop
+    enabled = Column(Boolean, default=True)
+    last_triggered_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    product = relationship("Product")
+    user = relationship("User")

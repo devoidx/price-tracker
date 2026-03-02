@@ -17,6 +17,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://tracker:tracker@db:5432/pricetracker
       - SECRET_KEY=${SECRET_KEY}
+      - GMAIL_ADDRESS=${GMAIL_ADDRESS}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
     depends_on:
       db:
         condition: service_healthy

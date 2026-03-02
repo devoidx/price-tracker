@@ -31,6 +31,12 @@ export const triggerScrape = (id) => api.post(`/prices/${id}/scrape`)
 // Prices
 export const getPriceHistory = (id) => api.get(`/prices/${id}`)
 
+// Alerts
+export const getAlerts = (productId) => api.get(`/alerts/${productId}`)
+export const createAlert = (productId, data) => api.post(`/alerts/${productId}`, data)
+export const deleteAlert = (alertId) => api.delete(`/alerts/${alertId}`)
+export const toggleAlert = (alertId) => api.patch(`/alerts/${alertId}/toggle`)
+
 // Admin
 export const getAdminUsers = () => api.get('/admin/users')
 export const deactivateUser = (id) => api.patch(`/admin/users/${id}/deactivate`)

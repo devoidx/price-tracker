@@ -62,3 +62,20 @@ class PriceHistoryOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Alert schemas ---
+class AlertCreate(BaseModel):
+    alert_type: str  # 'price_drop' or 'all_time_low'
+    threshold: Optional[Decimal] = None
+
+class AlertOut(BaseModel):
+    id: int
+    product_id: int
+    alert_type: str
+    threshold: Optional[Decimal]
+    enabled: bool
+    last_triggered_at: Optional[datetime]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
