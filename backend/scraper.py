@@ -42,9 +42,24 @@ def scrape_price(url: str, selector: str | None) -> dict:
         browser = p.chromium.launch(headless=True)
         try:
             context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                viewport={"width": 1920, "height": 1080},
+                locale="en-GB",
+                timezone_id="Europe/London",
+                extra_http_headers={
+                    "Accept-Language": "en-GB,en;q=0.9",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Connection": "keep-alive",
+                    "Upgrade-Insecure-Requests": "1",
+                }
             )
             page = context.new_page()
+            page.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+                Object.defineProperty(navigator, 'languages', { get: () => ['en-GB', 'en'] });
+            """)
 
             # Block images, fonts, and stylesheets to speed things up
             page.route("**/*", lambda route: route.abort()
@@ -52,7 +67,16 @@ def scrape_price(url: str, selector: str | None) -> dict:
                 else route.continue_()
             )
 
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            response = page.goto(url, wait_until="domcontentloaded", timeout=30000)
+
+            if response and response.status >= 400:
+                return {"price": None, "error": f"Page returned HTTP {response.status} — check the URL is valid and accessible"}
+
+            page.wait_for_timeout(2000)
+
+            page_title = page.title().lower()
+            if any(x in page_title for x in ["404", "not found", "page not found", "unavailable"]):
+                return {"price": None, "error": f"Page appears to be invalid or unavailable (title: '{page.title()}')"}
 
             if selector:
                 try:
