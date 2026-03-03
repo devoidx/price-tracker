@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Heading, Text, HStack, Stat, StatLabel, StatNumber, StatHelpText, Grid, Alert, AlertIcon, Table, Thead, Tbody, Tr, Th, Td, Icon } from '@chakra-ui/react'
+import { Box, Button, Heading, Text, HStack, Stat, StatLabel, StatNumber, StatHelpText, Grid, Alert, AlertIcon, Table, Thead, Tbody, Tr, Th, Td, Icon, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@chakra-ui/react'
 import { getProducts, getPriceHistory, triggerScrape, deleteProduct } from '../api'
 import PriceChart from '../components/PriceChart'
 import EditProductModal from '../components/EditProductModal'
@@ -15,6 +15,7 @@ export default function ProductDetail() {
   const [scraping, setScraping] = useState(false)
   const [scrapeMsg, setScrapeMsg] = useState('')
   const [showEdit, setShowEdit] = useState(false)
+  const [showScrapeConfirm, setShowScrapeConfirm] = useState(false)
 
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: () => getProducts().then(r => r.data) })
   const product = products.find(p => p.id === parseInt(id))
@@ -73,7 +74,7 @@ export default function ProductDetail() {
               <Button size="sm" variant="outline" colorScheme="brand" leftIcon={<Pencil size={13} />} onClick={() => setShowEdit(true)}>
                 Edit
               </Button>
-              <Button size="sm" variant="outline" colorScheme="brand" leftIcon={<RefreshCw size={13} />} onClick={handleScrape} isLoading={scraping} loadingText="Scraping...">
+	      <Button size="sm" variant="outline" colorScheme="brand" leftIcon={<RefreshCw size={13} />} onClick={() => setShowScrapeConfirm(true)} isLoading={scraping}>
                 Scrape now
               </Button>
               <Button size="sm" colorScheme="red" leftIcon={<Trash2 size={13} />} onClick={handleDelete}>
@@ -138,6 +139,40 @@ export default function ProductDetail() {
         )}
 
         <AlertsPanel productId={parseInt(id)} />
+
+        <Modal isOpen={showScrapeConfirm} onClose={() => setShowScrapeConfirm(false)}>
+        <ModalOverlay />
+        <ModalContent borderRadius="xl">
+          <ModalHeader>Scrape now?</ModalHeader>
+          <ModalBody>
+            <Text fontSize="sm" color="gray.600" mb={3}>
+              This will immediately scrape the current price for <strong>{product.name}</strong>.
+            </Text>
+            {latest && (
+              <Box bg="gray.50" borderRadius="lg" p={4} textAlign="center">
+                <Text fontSize="xs" color="gray.400" mb={1}>LAST SCRAPED PRICE</Text>
+                <Text fontSize="2xl" fontWeight={700} color="brand.500">
+                  £{Number(latest.price).toFixed(2)}
+                </Text>
+                <Text fontSize="xs" color="gray.400" mt={1}>
+                  {new Date(latest.scraped_at).toLocaleString()}
+                </Text>
+              </Box>
+            )}
+            {!latest && (
+              <Box bg="gray.50" borderRadius="lg" p={4} textAlign="center">
+                <Text fontSize="sm" color="gray.400">No previous price data</Text>
+              </Box>
+            )}
+          </ModalBody>
+          <ModalFooter gap={3}>
+            <Button variant="ghost" onClick={() => setShowScrapeConfirm(false)}>Cancel</Button>
+            <Button colorScheme="brand" isLoading={scraping} loadingText="Scraping..." onClick={() => { setShowScrapeConfirm(false); handleScrape() }}>
+              Scrape now
+            </Button>
+          </ModalFooter>
+          </ModalContent>
+        </Modal>
 
         {showEdit && (
           <EditProductModal
