@@ -13,8 +13,9 @@ A self-hosted price tracking application that monitors product prices over time 
 - **Edit tracked products** — update the name, URL, CSS selector, interval, or pause tracking at any time
 - **Price history graphs** — visualise how prices change over time with current, lowest, and highest price stats including the dates they occurred
 - **Price alerts** — get email notifications when a price drops below a target, hits a new all-time low, or decreases since the last check
+- **User profiles** — users can update their email address and change their password
 - **Multi-user support** — each user has their own tracked products and price history
-- **Admin panel** — manage users and view all tracked products across the platform
+- **Admin panel** — manage users, edit profiles, grant admin access, and view all tracked products across the platform
 - **Manual scrape trigger** — scrape any product on demand without waiting for the schedule
 - **Error tracking** — failed scrapes are logged with error details so you know when something breaks
 
@@ -59,32 +60,37 @@ Generate a secure secret key and add it to `.env`:
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-3. **Configure email alerts (optional)**
+Your `.env` should look like:
+```
+SECRET_KEY=your-generated-secret-key-here
+GMAIL_ADDRESS=your.gmail.address@gmail.com
+GMAIL_APP_PASSWORD=abcdefghijklmnop
+```
 
-See the [Email Alerts](#email-alerts) section below for full setup instructions.
-
-4. **Build and start the application**
+3. **Build and start the application**
 ```bash
 docker compose up --build
 ```
 
 The first build takes a few minutes as it downloads Playwright and Chromium.
 
-5. **Access the app**
+4. **Access the app**
 
 | Service | URL |
 |---|---|
 | Frontend | http://localhost:3000 |
 | API docs | http://localhost:8000/docs |
 
-6. **Log in with the default admin account**
+> The frontend port can be changed in `docker-compose.yml` if 3000 is already in use on your machine.
+
+5. **Log in with the default admin account**
 
 | Field | Value |
 |---|---|
 | Username | `admin` |
 | Password | `changeme` |
 
-> ⚠️ Change the admin password immediately after first login. Update the admin email address so alerts can be delivered:
+> ⚠️ Change the admin password immediately after first login via the **Profile** page. Update the admin email address so alerts can be delivered — connect to the database and run:
 > ```bash
 > docker compose exec db psql -U tracker -d pricetracker -c "UPDATE users SET email = 'your@email.com' WHERE username = 'admin';"
 > ```
@@ -144,6 +150,10 @@ On any product detail page, scroll down to the **Alerts** panel and click **Add 
 | Any price decrease | Notifies you whenever the price drops compared to the previous scrape |
 
 Alerts can be toggled on/off or deleted at any time from the same panel.
+
+### User profile
+
+Click **Profile** in the navbar to update your email address or change your password. The email address is where alert notifications will be delivered.
 
 ### Running in the background
 ```bash
@@ -218,6 +228,29 @@ def get_provider() -> NotificationProvider:
 ```
 
 No other files need to change — the alert logic and scraper are provider-agnostic.
+
+---
+
+## Admin Panel
+
+The admin panel is accessible from the navbar for users with admin access. It provides:
+
+- **User management** — view all users, edit their username, email, admin status, and active status
+- **Product overview** — view all tracked products across all users
+
+To grant admin access to a user, open the Admin panel, click **Edit** on the user's row, and toggle **Admin access** on.
+
+To reset the admin password from the command line:
+```bash
+HASH=$(sudo docker compose exec backend python3 -c "from passlib.context import CryptContext; ctx = CryptContext(schemes=['bcrypt'], deprecated='auto'); print(ctx.hash('newpassword'))")
+sudo docker compose exec db psql -U tracker -d pricetracker
+```
+
+Then inside psql:
+```sql
+UPDATE users SET password_hash = 'paste-hash-here' WHERE username = 'admin';
+\q
+```
 
 ---
 
@@ -318,6 +351,7 @@ price-tracker/
 │           ├── Register.jsx
 │           ├── Dashboard.jsx
 │           ├── ProductDetail.jsx
+│           ├── Profile.jsx
 │           └── Admin.jsx
 └── backend/
     ├── Dockerfile
@@ -334,7 +368,7 @@ price-tracker/
     ├── db/
     │   └── init.sql              # Database schema + default admin user
     └── routers/
-        ├── users.py              # Register, login, /me
+        ├── users.py              # Register, login, /me, password change
         ├── products.py           # CRUD + scheduler integration
         ├── prices.py             # Price history + manual scrape trigger
         ├── alerts.py             # Alert CRUD + test email
@@ -351,13 +385,9 @@ price-tracker/
 
 **Site returns empty page or CAPTCHA** — the site may be detecting the headless browser. Some sites (particularly Amazon) actively block scrapers and may require selector updates periodically.
 
-**Default admin login fails** — the bcrypt hash in `init.sql` may not match your environment. Generate a fresh one and update the database:
-```bash
-docker compose exec backend python3 -c "from passlib.context import CryptContext; ctx = CryptContext(schemes=['bcrypt'], deprecated='auto'); print(ctx.hash('changeme'))"
-docker compose exec db psql -U tracker -d pricetracker -c "UPDATE users SET password_hash = '\$2b\$12\$<your-hash>' WHERE username = 'admin';"
-```
+**Default admin login fails** — generate a fresh bcrypt hash and update it directly in psql as described in the Admin Panel section above.
 
-**Alert emails not arriving** — check the backend logs with `docker compose logs backend | grep -i "email\|gmail"`. Common causes are an incorrect app password, 2-Step Verification not enabled, or the admin account email not being set. Use `POST /alerts/test-email` in the API docs to test the configuration.
+**Alert emails not arriving** — check the backend logs with `docker compose logs backend | grep -i "email\|gmail"`. Common causes are an incorrect app password, 2-Step Verification not enabled, or the account email not being set. Use `POST /alerts/test-email` in the API docs to test.
 
 **Container won't start** — check logs with `docker compose logs backend`. Common causes are database connection issues on first startup; the healthcheck should handle this but try `docker compose restart backend` if needed.
 
