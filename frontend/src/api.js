@@ -42,5 +42,9 @@ export const getAdminUsers = () => api.get('/admin/users')
 export const deactivateUser = (id) => api.patch(`/admin/users/${id}/deactivate`)
 export const getAdminProducts = () => api.get('/admin/products')
 
+// User
+export const changePassword = (data) => api.put('/users/me/password', data)
+export const updateProfile = (data) => api.put('/users/me/profile', data)
+
 export default api
 

@@ -7,6 +7,7 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import ProductDetail from './pages/ProductDetail'
 import Admin from './pages/Admin'
+import Profile from './pages/Profile'
 import { Component } from 'react'
 
 class ErrorBoundary extends Component {
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/" element={<ProtectedRoute><ErrorBoundary name="Dashboard"><Dashboard /></ErrorBoundary></ProtectedRoute>} />
         <Route path="/products/:id" element={<ProtectedRoute><ErrorBoundary name="ProductDetail"><ProductDetail /></ErrorBoundary></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute adminOnly><ErrorBoundary name="Admin"><Admin /></ErrorBoundary></ProtectedRoute>} />
+	<Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       </Routes>
     </>
   )
