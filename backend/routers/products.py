@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
 import models, schemas, auth
-from scheduler import schedule_product, unschedule_product
+from scheduler import schedule_product, unschedule_product, scheduler
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -50,3 +50,12 @@ def delete_product(product_id: int, db: Session = Depends(get_db), current_user:
     db.delete(product)
     db.commit()
     return {"message": "Deleted successfully"}
+
+@router.get("/next-run-times")
+def get_next_run_times(current_user: models.User = Depends(auth.get_current_user)):
+    times = {}
+    for job in scheduler.get_jobs():
+        if job.id.startswith("product_"):
+            product_id = int(job.id.replace("product_", ""))
+            times[product_id] = job.next_run_time.isoformat() if job.next_run_time else None
+    return times

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Box, Button, Grid, Heading, Text, VStack, Icon } from '@chakra-ui/react'
-import { getProducts, getPriceHistory } from '../api'
 import { useAuth } from '../context/AuthContext'
 import ProductCard from '../components/ProductCard'
 import AddProductModal from '../components/AddProductModal'
 import { Plus, Package } from 'lucide-react'
+import { getProducts, getNextRunTimes } from '../api'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -15,6 +15,12 @@ export default function Dashboard() {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: () => getProducts().then(r => r.data)
+  })
+
+  const { data: nextRunTimes = {} } = useQuery({
+    queryKey: ['nextRunTimes'],
+    queryFn: () => getNextRunTimes().then(r => r.data),
+    refetchInterval: 60000
   })
 
   const { data: latestPrices = {} } = useQuery({
@@ -59,7 +65,7 @@ export default function Dashboard() {
       ) : (
         <Grid templateColumns="repeat(auto-fill, minmax(300px, 1fr))" gap={5}>
           {products.map(p => (
-            <ProductCard key={p.id} product={p} latestPrice={latestPrices[p.id]} />
+	   <ProductCard key={p.id} product={p} nextRun={nextRunTimes[p.id]} />
           ))}
         </Grid>
       )}
@@ -67,7 +73,11 @@ export default function Dashboard() {
       {showModal && (
         <AddProductModal
           onClose={() => setShowModal(false)}
-          onAdded={() => { queryClient.invalidateQueries(['products']); setShowModal(false) }}
+          onAdded={() => {
+	    queryClient.invalidateQueries(['products'])
+            queryClient.invalidateQueries(['nextRunTimes'])
+	    setShowModal(false)
+	  }}
         />
       )}
     </Box>

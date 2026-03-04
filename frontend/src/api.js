@@ -27,6 +27,7 @@ export const addProduct = (data) => api.post('/products/', data)
 export const updateProduct = (id, data) => api.patch(`/products/${id}`, data)
 export const deleteProduct = (id) => api.delete(`/products/${id}`)
 export const triggerScrape = (id) => api.post(`/prices/${id}/scrape`)
+export const getNextRunTimes = () => api.get('/products/next-run-times')
 
 // Prices
 export const getPriceHistory = (id) => api.get(`/prices/${id}`)
