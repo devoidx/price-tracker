@@ -1,71 +1,85 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
-from datetime import datetime
+from pydantic import BaseModel
+from typing import Optional, List
 from decimal import Decimal
+from datetime import datetime
 
-# --- User schemas ---
 class UserCreate(BaseModel):
     username: str
-    email: EmailStr
+    email: Optional[str] = None
     password: str
 
 class UserOut(BaseModel):
     id: int
     username: str
-    email: str
+    email: Optional[str]
     is_admin: bool
     active: bool
     created_at: datetime
-
     class Config:
         from_attributes = True
 
-# --- Auth schemas ---
 class Token(BaseModel):
     access_token: str
     token_type: str
 
-# --- Product schemas ---
-class ProductCreate(BaseModel):
-    name: str
+# Sources
+class SourceCreate(BaseModel):
+    label: Optional[str] = None
     url: str
     selector: Optional[str] = None
     interval_minutes: int = 60
 
-class ProductOut(BaseModel):
-    id: int
-    name: str
-    url: str
-    selector: Optional[str]
-    interval_minutes: int
-    active: bool
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-class ProductUpdate(BaseModel):
-    name: Optional[str] = None
+class SourceUpdate(BaseModel):
+    label: Optional[str] = None
     url: Optional[str] = None
     selector: Optional[str] = None
     interval_minutes: Optional[int] = None
     active: Optional[bool] = None
 
-# --- Price history schemas ---
-class PriceHistoryOut(BaseModel):
+class SourceOut(BaseModel):
     id: int
     product_id: int
+    label: str
+    url: str
+    selector: Optional[str]
+    interval_minutes: int
+    active: bool
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+# Products
+class ProductCreate(BaseModel):
+    name: str
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    active: Optional[bool] = None
+
+class ProductOut(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    active: bool
+    created_at: datetime
+    sources: List[SourceOut] = []
+    class Config:
+        from_attributes = True
+
+# Price history
+class PriceHistoryOut(BaseModel):
+    id: int
+    source_id: int
     price: Optional[Decimal]
     currency: str
     scraped_at: datetime
     error: Optional[str]
-
     class Config:
         from_attributes = True
 
-# --- Alert schemas ---
+# Alerts
 class AlertCreate(BaseModel):
-    alert_type: str  # 'price_drop' or 'all_time_low'
+    alert_type: str
     threshold: Optional[Decimal] = None
 
 class AlertOut(BaseModel):
@@ -76,6 +90,5 @@ class AlertOut(BaseModel):
     enabled: bool
     last_triggered_at: Optional[datetime]
     created_at: datetime
-
     class Config:
         from_attributes = True

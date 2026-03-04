@@ -77,7 +77,7 @@ def format_alert_email(product_name: str, url: str, current_price: Decimal, aler
         </div>
         </body></html>
         """
-     elif alert_type == "price_decreased":
+    elif alert_type == "price_decreased":
         diff = previous_price - current_price if previous_price else None
         subject = f"📉 Price decreased: {product_name} — £{current_price:.2f}"
         body = f"""

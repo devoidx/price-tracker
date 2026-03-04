@@ -7,9 +7,7 @@ from notifications import get_provider, format_alert_email
 
 logger = logging.getLogger(__name__)
 
-
 def check_alerts(product_id: int, current_price: Decimal, db: Session):
-    """Called after every successful scrape. Checks all alerts for this product and fires any that are triggered."""
     if current_price is None:
         return
 
@@ -17,13 +15,15 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
     if not product:
         return
 
-    # Get all previous valid prices to determine all-time low
-    history = db.query(models.PriceHistory).filter(
-        models.PriceHistory.product_id == product_id,
-        models.PriceHistory.price.isnot(None)
-    ).order_by(models.PriceHistory.scraped_at).all()
+    # Get all price history across all sources for this product
+    all_history = []
+    for source in product.sources:
+        for h in source.price_history:
+            if h.price is not None:
+                all_history.append(h)
+    all_history.sort(key=lambda x: x.scraped_at)
 
-    previous_prices = [float(h.price) for h in history[:-1]]  # exclude the latest scrape
+    previous_prices = [float(h.price) for h in all_history[:-1]]
     previous_low = min(previous_prices) if previous_prices else None
     previous_price = previous_prices[-1] if previous_prices else None
     is_all_time_low = previous_low is None or float(current_price) < previous_low
@@ -45,29 +45,22 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
             continue
 
         triggered = False
+        subject, body = None, None
 
         if alert.alert_type == "all_time_low" and is_all_time_low and previous_low is not None:
             triggered = True
-            subject, body = format_alert_email(
-                product.name, product.url, current_price,
-                "all_time_low", Decimal(str(previous_low))
-            )
+            subject, body = format_alert_email(product.name, product.sources[0].url, current_price, "all_time_low", Decimal(str(previous_low)))
 
         elif alert.alert_type == "price_drop" and alert.threshold is not None:
             if float(current_price) <= float(alert.threshold):
                 triggered = True
-                subject, body = format_alert_email(
-                    product.name, product.url, current_price, "price_drop"
-                )
+                subject, body = format_alert_email(product.name, product.sources[0].url, current_price, "price_drop")
 
         elif alert.alert_type == "price_decreased" and price_decreased:
             triggered = True
-            subject, body = format_alert_email(
-                product.name, product.url, current_price,
-                "price_decreased", previous_price=Decimal(str(previous_price))
-            )
+            subject, body = format_alert_email(product.name, product.sources[0].url, current_price, "price_decreased", previous_price=Decimal(str(previous_price)))
 
-        if triggered:
+        if triggered and subject and body:
             success = provider.send(subject, body, user.email)
             if success:
                 alert.last_triggered_at = datetime.utcnow()

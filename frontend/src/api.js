@@ -1,10 +1,7 @@
 import axios from 'axios'
 
-const api = axios.create({
-  baseURL: '/api',
-})
+const api = axios.create({ baseURL: '/api' })
 
-// Attach token to every request automatically
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token')
   if (token) config.headers.Authorization = `Bearer ${token}`
@@ -20,17 +17,26 @@ export const login = (username, password) => {
 }
 export const register = (data) => api.post('/users/register', data)
 export const getMe = () => api.get('/users/me')
+export const changePassword = (data) => api.put('/users/me/password', data)
+export const updateProfile = (data) => api.put('/users/me/profile', data)
 
 // Products
-export const getProducts = () => api.get('/products/')
-export const addProduct = (data) => api.post('/products/', data)
+export const getProducts = () => api.get('/products')
+export const createProduct = (data) => api.post('/products', data)
 export const updateProduct = (id, data) => api.patch(`/products/${id}`, data)
 export const deleteProduct = (id) => api.delete(`/products/${id}`)
-export const triggerScrape = (id) => api.post(`/prices/${id}/scrape`)
 export const getNextRunTimes = () => api.get('/products/next-run-times')
 
+// Sources
+export const getSources = (productId) => api.get(`/products/${productId}/sources`)
+export const addSource = (productId, data) => api.post(`/products/${productId}/sources`, data)
+export const updateSource = (productId, sourceId, data) => api.patch(`/products/${productId}/sources/${sourceId}`, data)
+export const deleteSource = (productId, sourceId) => api.delete(`/products/${productId}/sources/${sourceId}`)
+export const triggerSourceScrape = (sourceId) => api.post(`/prices/source/${sourceId}/scrape`)
+
 // Prices
-export const getPriceHistory = (id) => api.get(`/prices/${id}`)
+export const getPriceHistory = (productId) => api.get(`/prices/${productId}`)
+export const triggerScrape = (productId) => api.post(`/prices/${productId}/scrape`)
 
 // Alerts
 export const getAlerts = (productId) => api.get(`/alerts/${productId}`)
@@ -40,13 +46,6 @@ export const toggleAlert = (alertId) => api.patch(`/alerts/${alertId}/toggle`)
 
 // Admin
 export const getAdminUsers = () => api.get('/admin/users')
-export const deactivateUser = (id) => api.patch(`/admin/users/${id}/deactivate`)
 export const getAdminProducts = () => api.get('/admin/products')
-export const adminUpdateUser = (userId, data) => api.patch(`/admin/users/${userId}`, data)
-
-// User
-export const changePassword = (data) => api.put('/users/me/password', data)
-export const updateProfile = (data) => api.put('/users/me/profile', data)
-
-export default api
-
+export const deactivateUser = (id) => api.post(`/admin/users/${id}/deactivate`)
+export const adminUpdateUser = (id, data) => api.patch(`/admin/users/${id}`, data)
