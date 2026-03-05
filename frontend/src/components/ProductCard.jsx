@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { Box, Badge, Text, Heading, HStack } from '@chakra-ui/react'
 import { useQuery } from '@tanstack/react-query'
 import { getPriceHistory } from '../api'
+import { TrendingDown, TrendingUp, Minus } from 'lucide-react'
 
 export default function ProductCard({ product, nextRun }) {
   const navigate = useNavigate()
@@ -12,15 +13,33 @@ export default function ProductCard({ product, nextRun }) {
     refetchInterval: 60000
   })
 
+  // Get latest price per source, then take the lowest
   const validHistory = history.filter(h => h.price !== null)
-  const latestBySource = {}
+  const bySource = {}
   validHistory.forEach(h => {
-    if (!latestBySource[h.source_id] || new Date(h.scraped_at) > new Date(latestBySource[h.source_id].scraped_at)) {
-      latestBySource[h.source_id] = h
+    if (!bySource[h.source_id] || new Date(h.scraped_at) > new Date(bySource[h.source_id].scraped_at)) {
+      bySource[h.source_id] = h
     }
   })
-  const latestPrices = Object.values(latestBySource)
-  const lowestCurrent = latestPrices.length > 0 ? latestPrices.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b) : null
+  const latestPrices = Object.values(bySource)
+  const lowestCurrent = latestPrices.length > 0
+    ? latestPrices.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b)
+    : null
+
+  // Get previous price for the same source as the lowest current
+  let priceChange = null
+  if (lowestCurrent) {
+    const sourceHistory = validHistory
+      .filter(h => h.source_id === lowestCurrent.source_id)
+      .sort((a, b) => new Date(a.scraped_at) - new Date(b.scraped_at))
+    if (sourceHistory.length >= 2) {
+      const prev = parseFloat(sourceHistory[sourceHistory.length - 2].price)
+      const curr = parseFloat(lowestCurrent.price)
+      const pct = ((curr - prev) / prev) * 100
+      priceChange = { pct, increased: curr > prev, unchanged: curr === prev }
+    }
+  }
+
   const sourceCount = product.sources?.length || 0
 
   return (
@@ -36,11 +55,30 @@ export default function ProductCard({ product, nextRun }) {
       <Text fontSize="xs" color="gray.500" mb={4}>
         {sourceCount} source{sourceCount !== 1 ? 's' : ''}
       </Text>
+
       {lowestCurrent ? (
         <>
-          <Text fontSize="2xl" fontWeight={700} color="brand.500">
-            £{Number(lowestCurrent.price).toFixed(2)}
-          </Text>
+          <HStack align="baseline" spacing={2}>
+            <Text fontSize="2xl" fontWeight={700} color="brand.500">
+              £{Number(lowestCurrent.price).toFixed(2)}
+            </Text>
+            {priceChange && !priceChange.unchanged && (
+              <HStack spacing={1} color={priceChange.increased ? 'red.500' : 'green.500'}>
+                {priceChange.increased
+                  ? <TrendingUp size={15} />
+                  : <TrendingDown size={15} />}
+                <Text fontSize="xs" fontWeight={600}>
+                  {priceChange.increased ? '+' : ''}{priceChange.pct.toFixed(1)}%
+                </Text>
+              </HStack>
+            )}
+            {priceChange && priceChange.unchanged && (
+              <HStack spacing={1} color="gray.400">
+                <Minus size={13} />
+                <Text fontSize="xs">0%</Text>
+              </HStack>
+            )}
+          </HStack>
           <Text fontSize="xs" color="gray.400" mt={1}>
             {latestPrices.length > 1 ? 'Lowest current price' : 'Current price'}
           </Text>
@@ -48,6 +86,7 @@ export default function ProductCard({ product, nextRun }) {
       ) : (
         <Text fontSize="sm" color="gray.400">No price data yet</Text>
       )}
+
       <Box borderTop="1px" borderColor="gray.200" mt={4} pt={3}>
         <Text fontSize="xs" color="gray.400">
           {nextRun
