@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Box, Button, Heading, HStack, Text, Badge, VStack, Input, Select, FormControl, FormLabel, FormHelperText, Switch, Alert, AlertIcon, Table, Thead, Tbody, Tr, Th, Td, IconButton, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@chakra-ui/react'
-import { getSources, addSource, updateSource, deleteSource, triggerSourceScrape, getNextRunTimes } from '../api'
 import { Plus, Trash2, Pencil, RefreshCw } from 'lucide-react'
+import { getSources, addSource, updateSource, deleteSource, triggerSourceScrape, getNextRunTimes, getPriceHistory } from '../api'
 
 const INTERVALS = [
   { label: '15 minutes', value: 15 },
@@ -95,6 +95,20 @@ export default function SourcesPanel({ product }) {
     queryKey: ['nextRunTimes'],
     queryFn: () => getNextRunTimes().then(r => r.data),
     refetchInterval: 60000
+  })
+
+  const { data: history = [] } = useQuery({
+    queryKey: ['history', product.id],
+    queryFn: () => getPriceHistory(product.id).then(r => r.data),
+    refetchInterval: 60000
+  })
+
+// Get last scrape result per source
+  const lastScrape = {}
+  history.forEach(h => {
+    if (!lastScrape[h.source_id] || new Date(h.scraped_at) > new Date(lastScrape[h.source_id].scraped_at)) {
+      lastScrape[h.source_id] = h
+    }
   })
 
   const openAdd = () => {
@@ -191,43 +205,57 @@ export default function SourcesPanel({ product }) {
       {sources.length === 0 ? (
         <Text fontSize="sm" color="gray.400">No sources added yet — add a URL to start tracking prices</Text>
       ) : (
-        <Table size="sm">
-          <Thead>
-            <Tr><Th>Label</Th><Th>URL</Th><Th>Interval</Th><Th>Status</Th><Th>Next check</Th><Th></Th></Tr>
-          </Thead>
-          <Tbody>
-            {sources.map(s => (
-              <Tr key={s.id}>
-                <Td fontWeight={500}>{s.label}</Td>
-                <Td fontSize="xs" color="gray.400" maxW="200px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
-                  <Text as="a" href={s.url} target="_blank" rel="noreferrer">{s.url}</Text>
-                </Td>
-                <Td>
-                  <Badge colorScheme="purple" variant="subtle" fontSize="xs">
-                    {s.interval_minutes < 60 ? `${s.interval_minutes}m` : `${s.interval_minutes / 60}h`}
-                  </Badge>
-                </Td>
-                <Td>
-                  <Badge colorScheme={s.active ? 'green' : 'gray'} fontSize="xs">
-                    {s.active ? 'Active' : 'Paused'}
-                  </Badge>
-                </Td>
-                <Td fontSize="xs" color="gray.400">
-                  {nextRunTimes[s.id]
-                    ? new Date(nextRunTimes[s.id]).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-                    : s.active ? '—' : 'Paused'}
-                </Td>
-                <Td>
-                  <HStack spacing={1}>
-                    <IconButton size="xs" variant="ghost" colorScheme="brand" icon={<RefreshCw size={12} />} isLoading={scrapingId === s.id} onClick={() => handleScrape(s.id)} aria-label="Scrape now" />
-                    <IconButton size="xs" variant="ghost" colorScheme="brand" icon={<Pencil size={12} />} onClick={() => openEdit(s)} aria-label="Edit" />
-                    <IconButton size="xs" variant="ghost" colorScheme="red" icon={<Trash2 size={12} />} onClick={() => handleDelete(s.id)} aria-label="Delete" />
-                  </HStack>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
+	      <Table size="sm">
+  <Thead>
+    <Tr><Th>Label</Th><Th>URL</Th><Th>Interval</Th><Th>Status</Th><Th>Last price</Th><Th>Next check</Th><Th></Th></Tr>
+  </Thead>
+  <Tbody>
+    {sources.map(s => {
+      const last = lastScrape[s.id]
+      return (
+        <Tr key={s.id}>
+          <Td fontWeight={500}>{s.label}</Td>
+          <Td fontSize="xs" color="gray.400" maxW="200px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+            <Text as="a" href={s.url} target="_blank" rel="noreferrer">{s.url}</Text>
+          </Td>
+          <Td>
+            <Badge colorScheme="purple" variant="subtle" fontSize="xs">
+              {s.interval_minutes < 60 ? `${s.interval_minutes}m` : `${s.interval_minutes / 60}h`}
+            </Badge>
+          </Td>
+          <Td>
+            <Badge colorScheme={s.active ? 'green' : 'gray'} fontSize="xs">
+              {s.active ? 'Active' : 'Paused'}
+            </Badge>
+          </Td>
+          <Td>
+            {!last ? (
+              <Text fontSize="xs" color="gray.400">—</Text>
+            ) : last.error ? (
+              <Badge colorScheme="red" fontSize="xs">ERROR</Badge>
+            ) : (
+              <Text fontSize="xs" fontWeight={600} color="brand.600">
+                £{Number(last.price).toFixed(2)}
+              </Text>
+            )}
+          </Td>
+          <Td fontSize="xs" color="gray.400">
+            {nextRunTimes[s.id]
+              ? new Date(nextRunTimes[s.id]).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+              : s.active ? '—' : 'Paused'}
+          </Td>
+          <Td>
+            <HStack spacing={1}>
+              <IconButton size="xs" variant="ghost" colorScheme="brand" icon={<RefreshCw size={12} />} isLoading={scrapingId === s.id} onClick={() => handleScrape(s.id)} aria-label="Scrape now" />
+              <IconButton size="xs" variant="ghost" colorScheme="brand" icon={<Pencil size={12} />} onClick={() => openEdit(s)} aria-label="Edit" />
+              <IconButton size="xs" variant="ghost" colorScheme="red" icon={<Trash2 size={12} />} onClick={() => handleDelete(s.id)} aria-label="Delete" />
+            </HStack>
+          </Td>
+        </Tr>
+      )
+    })}
+  </Tbody>
+</Table>
       )}
 
       {/* Add source modal */}
