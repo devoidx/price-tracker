@@ -10,6 +10,7 @@ class User(Base):
     email = Column(String(255))
     password_hash = Column(String(255), nullable=False)
     is_admin = Column(Boolean, default=False)
+    is_super_admin = Column(Boolean, default=False)
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     products = relationship("Product", back_populates="user")
@@ -60,3 +61,9 @@ class Alert(Base):
     created_at = Column(DateTime, server_default=func.now())
     product = relationship("Product", back_populates="alerts")
     user = relationship("User")
+
+class Setting(Base):
+    __tablename__ = "settings"
+    key = Column(String(100), primary_key=True)
+    value = Column(Text)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

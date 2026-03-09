@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict
 from decimal import Decimal
 from datetime import datetime
 
@@ -13,6 +13,7 @@ class UserOut(BaseModel):
     username: str
     email: Optional[str]
     is_admin: bool
+    is_super_admin: bool
     active: bool
     created_at: datetime
     class Config:
@@ -22,7 +23,6 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-# Sources
 class SourceCreate(BaseModel):
     label: Optional[str] = None
     url: str
@@ -48,7 +48,6 @@ class SourceOut(BaseModel):
     class Config:
         from_attributes = True
 
-# Products
 class ProductCreate(BaseModel):
     name: str
 
@@ -66,7 +65,6 @@ class ProductOut(BaseModel):
     class Config:
         from_attributes = True
 
-# Price history
 class PriceHistoryOut(BaseModel):
     id: int
     source_id: int
@@ -77,7 +75,6 @@ class PriceHistoryOut(BaseModel):
     class Config:
         from_attributes = True
 
-# Alerts
 class AlertCreate(BaseModel):
     alert_type: str
     threshold: Optional[Decimal] = None
@@ -92,3 +89,6 @@ class AlertOut(BaseModel):
     created_at: datetime
     class Config:
         from_attributes = True
+
+class SettingsUpdate(BaseModel):
+    settings: Dict[str, str]

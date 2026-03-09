@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255),
     password_hash VARCHAR(255) NOT NULL,
     is_admin BOOLEAN DEFAULT FALSE,
+    is_super_admin BOOLEAN DEFAULT FALSE,
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT NOW()
 );
@@ -47,17 +48,37 @@ CREATE TABLE IF NOT EXISTS alerts (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value TEXT,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_price_history_source_id ON price_history(source_id);
 CREATE INDEX IF NOT EXISTS idx_price_history_scraped_at ON price_history(scraped_at);
 CREATE INDEX IF NOT EXISTS idx_sources_product_id ON sources(product_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_product_id ON alerts(product_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_user_id ON alerts(user_id);
 
+-- Default settings
+INSERT INTO settings (key, value) VALUES
+    ('notification_provider', 'smtp'),
+    ('gmail_address', ''),
+    ('gmail_app_password', ''),
+    ('smtp_host', ''),
+    ('smtp_port', '587'),
+    ('smtp_username', ''),
+    ('smtp_password', ''),
+    ('smtp_from_address', ''),
+    ('smtp_use_tls', 'true')
+ON CONFLICT (key) DO NOTHING;
+
 -- Default admin user (password: changeme)
-INSERT INTO users (username, email, password_hash, is_admin)
+INSERT INTO users (username, email, password_hash, is_admin, is_super_admin)
 VALUES (
     'admin',
-    'tony.mcmahon@gmail.com',
+    '',
     '$2b$12$YbTpFpGh4xTmkVZGFVhB0.8GpIHLZFMJjFKFQnbXKKoFcMKvlzDLi',
+    TRUE,
     TRUE
 ) ON CONFLICT (username) DO NOTHING;

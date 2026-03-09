@@ -11,7 +11,7 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   response => response,
   error => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !error.config.url.includes('/users/login')) {
       localStorage.removeItem('token')
       window.location.href = '/login?session=expired'
     }
@@ -60,3 +60,10 @@ export const getAdminUsers = () => api.get('/admin/users')
 export const getAdminProducts = () => api.get('/admin/products')
 export const deactivateUser = (id) => api.post(`/admin/users/${id}/deactivate`)
 export const adminUpdateUser = (id, data) => api.patch(`/admin/users/${id}`, data)
+export const getAdminProductHistory = (productId) => api.get(`/admin/products/${productId}/history`)
+
+// Settings
+// Settings
+export const getSettings = () => api.get('/settings')
+export const updateSettings = (data) => api.put('/settings', { settings: data })
+export const testNotification = () => api.post('/settings/test-notification')

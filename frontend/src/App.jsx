@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 import ProductDetail from './pages/ProductDetail'
 import Admin from './pages/Admin'
 import Profile from './pages/Profile'
+import Settings from './pages/Settings'
 import { Component } from 'react'
 
 class ErrorBoundary extends Component {
@@ -32,6 +33,14 @@ function ProtectedRoute({ children, adminOnly = false }) {
   return children
 }
 
+function SuperAdminRoute({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user) return <Navigate to="/login" />
+  if (!user.is_super_admin) return <Navigate to="/" />
+  return children
+}
+
 export default function App() {
   const { user } = useAuth()
   return (
@@ -44,6 +53,7 @@ export default function App() {
         <Route path="/products/:id" element={<ProtectedRoute><ErrorBoundary name="ProductDetail"><ProductDetail /></ErrorBoundary></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute adminOnly><ErrorBoundary name="Admin"><Admin /></ErrorBoundary></ProtectedRoute>} />
 	<Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+	<Route path="/settings" element={<SuperAdminRoute><Settings /></SuperAdminRoute>} />
       </Routes>
     </>
   )

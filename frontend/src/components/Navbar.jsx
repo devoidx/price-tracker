@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Box, Flex, Button, Text, HStack } from '@chakra-ui/react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, LayoutDashboard, Shield, User } from 'lucide-react'
+import { LogOut, LayoutDashboard, Shield, User, Settings } from 'lucide-react'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
@@ -25,6 +25,11 @@ export default function Navbar() {
       {user?.is_admin && (
         <Button as={Link} to="/admin" variant="ghost" color="white" _hover={{ bg: 'brand.700' }} size="sm" leftIcon={<Shield size={14} />}>
           Admin
+        </Button>
+      )}
+      {user?.is_super_admin && (
+        <Button as={Link} to="/settings" variant="ghost" color="white" _hover={{ bg: 'brand.700' }} size="sm" leftIcon={<Settings size={14} />}>
+          Settings
         </Button>
       )}
         <Button as={Link} to="/profile" variant="ghost" color="white" _hover={{ bg: 'brand.700' }} size="sm" leftIcon={<User size={14} />}>

@@ -1,49 +1,39 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
 from database import get_db
 import models, schemas, auth
+from notifications import test_notification
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
-@router.post("/test-email")
-def test_email(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    from notifications import get_provider, format_alert_email
-    from decimal import Decimal
-    provider = get_provider()
-    subject, body = format_alert_email(
-        product_name="Test Product",
-        url="https://example.com",
-        current_price=Decimal("29.99"),
-        alert_type="price_drop"
-    )
-    success = provider.send(subject, body, current_user.email)
-    if success:
-        return {"message": f"Test email sent to {current_user.email}"}
-    else:
-        return {"message": "Failed to send — check backend logs for details"}
-
-@router.get("/{product_id}", response_model=List[schemas.AlertOut])
+@router.get("/{product_id}", response_model=list[schemas.AlertOut])
 def get_alerts(product_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     product = db.query(models.Product).filter(models.Product.id == product_id, models.Product.user_id == current_user.id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return db.query(models.Alert).filter(models.Alert.product_id == product_id).all()
+    return db.query(models.Alert).filter(models.Alert.product_id == product_id, models.Alert.user_id == current_user.id).all()
+
+@router.post("/test-email")
+def send_test_email(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if not current_user.email:
+        raise HTTPException(status_code=400, detail="No email address set on your account")
+    success = test_notification(db, current_user.email)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to send test email — check notification settings")
+    return {"message": f"Test email sent to {current_user.email}"}
 
 @router.post("/{product_id}", response_model=schemas.AlertOut)
 def create_alert(product_id: int, alert: schemas.AlertCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     product = db.query(models.Product).filter(models.Product.id == product_id, models.Product.user_id == current_user.id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    if alert.alert_type not in ("price_drop", "all_time_low", "price_decreased"):
-        raise HTTPException(status_code=400, detail="alert_type must be 'price_drop', 'all_time_low' or 'price_decreased'")
     if alert.alert_type == "price_drop" and alert.threshold is None:
-        raise HTTPException(status_code=400, detail="price_drop alerts require a threshold")
+        raise HTTPException(status_code=400, detail="Threshold required for price_drop alerts")
     new_alert = models.Alert(
         product_id=product_id,
         user_id=current_user.id,
         alert_type=alert.alert_type,
-        threshold=alert.threshold,
+        threshold=alert.threshold
     )
     db.add(new_alert)
     db.commit()

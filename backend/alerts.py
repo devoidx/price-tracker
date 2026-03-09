@@ -15,7 +15,6 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
     if not product:
         return
 
-    # Get all price history across all sources for this product
     all_history = []
     for source in product.sources:
         for h in source.price_history:
@@ -37,7 +36,7 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
     if not alerts:
         return
 
-    provider = get_provider()
+    provider = get_provider(db)
 
     for alert in alerts:
         user = db.query(models.User).filter(models.User.id == alert.user_id).first()
@@ -50,12 +49,10 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
         if alert.alert_type == "all_time_low" and is_all_time_low and previous_low is not None:
             triggered = True
             subject, body = format_alert_email(product.name, product.sources[0].url, current_price, "all_time_low", Decimal(str(previous_low)))
-
         elif alert.alert_type == "price_drop" and alert.threshold is not None:
             if float(current_price) <= float(alert.threshold):
                 triggered = True
                 subject, body = format_alert_email(product.name, product.sources[0].url, current_price, "price_drop")
-
         elif alert.alert_type == "price_decreased" and price_decreased:
             triggered = True
             subject, body = format_alert_email(product.name, product.sources[0].url, current_price, "price_decreased", previous_price=Decimal(str(previous_price)))

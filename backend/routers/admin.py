@@ -1,35 +1,44 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
-from database import get_db
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional
-
+from database import get_db
 import models, schemas, auth
+
+router = APIRouter(prefix="/admin", tags=["admin"])
+
+def require_super_admin(current_user: models.User = Depends(auth.get_current_user)):
+    if not current_user.is_super_admin:
+        raise HTTPException(status_code=403, detail="Super admin access required")
+    return current_user
 
 class AdminUserUpdate(BaseModel):
     email: Optional[str] = None
     username: Optional[str] = None
     is_admin: Optional[bool] = None
+    is_super_admin: Optional[bool] = None
     active: Optional[bool] = None
 
-router = APIRouter(prefix="/admin", tags=["admin"])
-
-@router.get("/users", response_model=List[schemas.UserOut])
-def list_users(db: Session = Depends(get_db), _: models.User = Depends(auth.require_admin)):
+@router.get("/users")
+def get_all_users(db: Session = Depends(get_db), _: models.User = Depends(auth.require_admin)):
     return db.query(models.User).all()
 
-@router.patch("/users/{user_id}/deactivate")
+@router.post("/users/{user_id}/deactivate")
 def deactivate_user(user_id: int, db: Session = Depends(get_db), _: models.User = Depends(auth.require_admin)):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.active = False
     db.commit()
-    return {"message": f"User {user.username} deactivated"}
+    return {"message": "User deactivated"}
 
 @router.patch("/users/{user_id}", response_model=schemas.UserOut)
-def update_user(user_id: int, updates: AdminUserUpdate, db: Session = Depends(get_db), _: models.User = Depends(auth.require_admin)):
+def update_user(user_id: int, updates: AdminUserUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    # Only super admins can change is_super_admin
+    if updates.is_super_admin is not None and not current_user.is_super_admin:
+        raise HTTPException(status_code=403, detail="Only super admins can change super admin status")
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -47,6 +56,29 @@ def update_user(user_id: int, updates: AdminUserUpdate, db: Session = Depends(ge
     db.refresh(user)
     return user
 
-@router.get("/products", response_model=List[schemas.ProductOut])
-def list_all_products(db: Session = Depends(get_db), _: models.User = Depends(auth.require_admin)):
-    return db.query(models.Product).all()
+@router.get("/products")
+def get_all_products(db: Session = Depends(get_db), _: models.User = Depends(auth.require_admin)):
+    products = db.query(models.Product).all()
+    result = []
+    for p in products:
+        result.append({
+            "id": p.id,
+            "name": p.name,
+            "active": p.active,
+            "username": p.user.username,
+            "source_count": len(p.sources),
+            "created_at": p.created_at
+        })
+    return result
+
+@router.get("/products/{product_id}/history")
+def get_product_history(product_id: int, db: Session = Depends(get_db), _: models.User = Depends(auth.require_admin)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    history = []
+    for source in product.sources:
+        for entry in source.price_history:
+            history.append(entry)
+    history.sort(key=lambda x: x.scraped_at)
+    return history
