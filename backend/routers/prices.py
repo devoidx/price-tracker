@@ -86,16 +86,18 @@ def debug_source(source_id: int, db: Session = Depends(get_db), current_user: mo
         results = page.evaluate("""
     () => {
         const matches = [];
-        document.querySelectorAll('h2').forEach(el => {
+        document.querySelectorAll('*').forEach(el => {
             const text = el.innerText ? el.innerText.trim() : '';
-            if (text) matches.push({ 
-                tag: 'H2',
-                text: text.substring(0, 80),
-                parent_class: el.parentElement ? el.parentElement.className : '',
-                grandparent_class: el.parentElement && el.parentElement.parentElement ? el.parentElement.parentElement.className : ''
-            });
+            if (text && text.match(/£\\d+/) && text.length < 50 && el.children.length === 0) {
+                matches.push({
+                    tag: el.tagName,
+                    class: el.className,
+                    text: text.substring(0, 80),
+                    parent_class: el.parentElement ? el.parentElement.className : ''
+                });
+            }
         });
-        return matches.slice(0, 10);
+        return matches.slice(0, 20);
     }
 """)
         browser.close()
