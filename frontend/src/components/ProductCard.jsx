@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { Box, Badge, Text, Heading, HStack } from '@chakra-ui/react'
+import { Box, Text, Heading, HStack } from '@chakra-ui/react'
 import { useQuery } from '@tanstack/react-query'
 import { getPriceHistory } from '../api'
-import { TrendingDown, TrendingUp, Minus } from 'lucide-react'
+import { TrendingDown, TrendingUp } from 'lucide-react'
 
 export default function ProductCard({ product, nextRun }) {
   const navigate = useNavigate()
@@ -13,8 +13,9 @@ export default function ProductCard({ product, nextRun }) {
     refetchInterval: 60000
   })
 
-  // Get latest price per source, then take the lowest
   const validHistory = history.filter(h => h.price !== null)
+
+  // Get latest price per source, then take the lowest
   const bySource = {}
   validHistory.forEach(h => {
     if (!bySource[h.source_id] || new Date(h.scraped_at) > new Date(bySource[h.source_id].scraped_at)) {
@@ -26,20 +27,31 @@ export default function ProductCard({ product, nextRun }) {
     ? latestPrices.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b)
     : null
 
-  // Get previous price for the same source as the lowest current
+  // Week-over-week price change
   let priceChange = null
-  if (lowestCurrent) {
-    const sourceHistory = validHistory
-      .filter(h => h.source_id === lowestCurrent.source_id)
-      .sort((a, b) => new Date(a.scraped_at) - new Date(b.scraped_at))
-    if (sourceHistory.length >= 2) {
-      const prev = parseFloat(sourceHistory[sourceHistory.length - 2].price)
-      const curr = parseFloat(lowestCurrent.price)
-      const pct = ((curr - prev) / prev) * 100
-      priceChange = { pct, increased: curr > prev, unchanged: curr === prev }
-    }
-  }
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
+  if (lowestCurrent) {
+      const curr = parseFloat(lowestCurrent.price)
+    
+      const sortedHistory = [...validHistory].sort((a, b) => new Date(a.scraped_at) - new Date(b.scraped_at))
+      const weekOldHistory = sortedHistory.filter(h => new Date(h.scraped_at) <= oneWeekAgo)
+    
+      // Fall back to oldest available data if nothing older than 7 days
+      const referenceHistory = weekOldHistory.length > 0 ? weekOldHistory : sortedHistory.slice(0, Math.ceil(sortedHistory.length / 3))
+    
+      if (referenceHistory.length > 0) {
+        const weekOldPrices = {}
+        referenceHistory.forEach(h => {
+          if (!weekOldPrices[h.source_id]) weekOldPrices[h.source_id] = parseFloat(h.price)
+        })
+        const weekOldLowest = Math.min(...Object.values(weekOldPrices))
+        const pct = ((curr - weekOldLowest) / weekOldLowest) * 100
+        if (Math.abs(pct) >= 0.1) {
+          priceChange = { pct, increased: curr > weekOldLowest }
+        }
+      }
+    }
   const sourceCount = product.sources?.length || 0
 
   return (
@@ -62,25 +74,20 @@ export default function ProductCard({ product, nextRun }) {
             <Text fontSize="2xl" fontWeight={700} color="brand.500">
               £{Number(lowestCurrent.price).toFixed(2)}
             </Text>
-            {priceChange && !priceChange.unchanged && (
+            {priceChange && (
               <HStack spacing={1} color={priceChange.increased ? 'red.500' : 'green.500'}>
-                {priceChange.increased
-                  ? <TrendingUp size={15} />
-                  : <TrendingDown size={15} />}
+                {priceChange.increased ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
                 <Text fontSize="xs" fontWeight={600}>
                   {priceChange.increased ? '+' : ''}{priceChange.pct.toFixed(1)}%
                 </Text>
               </HStack>
             )}
-            {priceChange && priceChange.unchanged && (
-              <HStack spacing={1} color="gray.400">
-                <Minus size={13} />
-                <Text fontSize="xs">0%</Text>
-              </HStack>
-            )}
           </HStack>
           <Text fontSize="xs" color="gray.400" mt={1}>
             {latestPrices.length > 1 ? 'Lowest current price' : 'Current price'}
+            {priceChange && (
+              <Text as="span" color="gray.400"> · vs earlier</Text>
+            )}
           </Text>
         </>
       ) : (
