@@ -13,12 +13,17 @@ A self-hosted price tracking application that monitors product prices over time 
 - **Scheduled scraping** — each source has its own configurable check interval (15 minutes to 24 hours)
 - **Persistent scheduler** — scrape schedules survive backend restarts and maintain their original timing
 - **Price history graphs** — visualise how prices change over time with current, lowest, and highest price stats
+- **Price change indicators** — dashboard cards show week-over-week price change with green/red trend arrows
+- **Dashboard sorting and filtering** — sort by name, price, last scraped, or biggest price drop; filter by name
 - **Price alerts** — get email notifications when a price drops below a target, hits a new all-time low, or decreases since the last check
 - **User profiles** — users can update their email address and change their password
 - **Multi-user support** — each user has their own tracked products and price history
 - **Admin panel** — manage users, edit profiles, grant admin access, and view scrape errors across all products
+- **Super admin** — dedicated super admin role with access to system settings and notification configuration
+- **Configurable notifications** — choose between Gmail and SMTP for alert emails, configured via the settings page
 - **Manual scrape trigger** — scrape any product or individual source on demand
 - **Error tracking** — failed scrapes are logged with error details on the product detail page
+- **Session expiry handling** — automatic redirect to login with a clear message when session expires
 
 ---
 
@@ -31,7 +36,7 @@ A self-hosted price tracking application that monitors product prices over time 
 | Scraping | Playwright (Chromium + Firefox fallback for bot-protected sites) |
 | Database | PostgreSQL 16 |
 | Auth | JWT (python-jose) + bcrypt |
-| Notifications | Gmail SMTP (extensible to Telegram, Ntfy, Discord) |
+| Notifications | Gmail SMTP or any SMTP server (configured via settings page) |
 | Infrastructure | Docker Compose, Nginx |
 
 ---
@@ -64,8 +69,6 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 Your `.env` should look like:
 ```
 SECRET_KEY=your-generated-secret-key-here
-GMAIL_ADDRESS=your.gmail.address@gmail.com
-GMAIL_APP_PASSWORD=abcdefghijklmnop
 ```
 
 3. **Build and start the application**
@@ -91,10 +94,26 @@ The first build takes a few minutes as it downloads Playwright, Chromium, and Fi
 | Username | `admin` |
 | Password | `changeme` |
 
-> ⚠️ Change the admin password immediately after first login via the **Profile** page. Update the admin email address so alerts can be delivered:
-> ```bash
-> docker compose exec db psql -U tracker -d pricetracker -c "UPDATE users SET email = 'your@email.com' WHERE username = 'admin';"
-> ```
+> ⚠️ Change the admin password immediately after first login via the **Profile** page.
+
+6. **Configure notifications**
+
+Go to **Settings** (visible in the navbar for super admins) and configure your email provider. Update the admin email address so alerts can be delivered:
+```bash
+docker compose exec db psql -U tracker -d pricetracker -c "UPDATE users SET email = 'your@email.com' WHERE username = 'admin';"
+```
+
+---
+
+## User Roles
+
+| Role | Permissions |
+|---|---|
+| User | Track products, manage own alerts, update own profile |
+| Admin | All user permissions + manage users, view all products and scrape errors |
+| Super admin | All admin permissions + access settings page, configure notifications, grant super admin to others |
+
+The default `admin` account is a super admin. Additional super admins can be promoted via the Admin panel.
 
 ---
 
@@ -124,12 +143,12 @@ The CSS selector tells the scraper where to find the price on the page.
 
 1. Right-click the price on the product page
 2. Click **Inspect**
-3. Right-click the highlighted element in DevTools → **Copy** → **Copy selector**
-4. Paste it into the selector field
+3. Look at the highlighted element — note its tag and class names
+4. Build a selector from the class, e.g. `.price__amount` or `.fw-bold.h4`
 
 If no selector is provided, the scraper will attempt to detect the price automatically.
 
-Some common selectors for popular UK retailers:
+Some known working selectors for popular UK retailers:
 
 | Site | Selector |
 |---|---|
@@ -137,10 +156,17 @@ Some common selectors for popular UK retailers:
 | Currys | `.prod-price` |
 | Argos | `h2` |
 | eBay | `.x-price-primary` |
+| Overclockers | `.price__amount` |
+| Gadgetverse | `.hM4gpp span` |
+| CCL Computers | `.fw-bold.h4` |
+
+### Debugging a selector
+
+Use the debug endpoint to inspect what the scraper sees on any page. In the API docs at `http://localhost:8000/docs`, find `GET /prices/source/{source_id}/debug` and run it with the source ID. Source IDs are visible in the Sources panel for super admins.
 
 ### Scraper compatibility
 
-The scraper uses Chromium by default. For sites that block Chromium, Firefox is used automatically. Known compatibility:
+The scraper uses Chromium by default. For sites that block Chromium, Firefox is used automatically.
 
 | Retailer | Status |
 |---|---|
@@ -148,11 +174,20 @@ The scraper uses Chromium by default. For sites that block Chromium, Firefox is 
 | Currys | ✅ Working |
 | Argos | ✅ Working (Firefox) |
 | eBay | ✅ Working |
+| Overclockers | ✅ Working |
+| Gadgetverse | ✅ Working |
+| CCL Computers | ✅ Working |
 | John Lewis | ❌ Blocked |
+
+To add Firefox support for additional sites, add the domain to `FIREFOX_SITES` in `backend/scraper.py`.
 
 ### Price comparison graph
 
-When a product has multiple sources, the price history graph shows one line per source in different colours. Hover over any point to see the source name and price.
+When a product has multiple sources, the price history graph shows one line per source in different colours. The X axis is time-scaled so gaps between scrapes are proportional. Hover over any point to see the source name and price.
+
+### Price change indicators
+
+Dashboard cards show a green arrow and percentage when a price has dropped, or a red arrow when it has risen, compared to the price from 7 days ago. If less than 7 days of data is available, the oldest available price is used for comparison.
 
 ### Setting up alerts
 
@@ -168,7 +203,7 @@ Alerts are evaluated across all sources for a product — if any source hits the
 
 ### User profile
 
-Click **Profile** in the navbar to update your email address or change your password.
+Click **Profile** in the navbar to update your email address or change your password. The email address is where alert notifications will be delivered.
 
 ### Running in the background
 ```bash
@@ -182,35 +217,32 @@ docker compose logs -f backend
 
 ---
 
-## Email Alerts
+## Notification Settings
 
-Price Tracker uses Gmail to send alert notifications. You will need a Google account with 2-Step Verification enabled and a Gmail App Password.
+Notification settings are configured via the **Settings** page, accessible to super admins from the navbar.
 
-### Step 1 — Enable 2-Step Verification
+### Gmail
 
-Enable 2-Step Verification on your Google account at [myaccount.google.com/security](https://myaccount.google.com/security).
+1. Enable 2-Step Verification at [myaccount.google.com/security](https://myaccount.google.com/security)
+2. Generate an app password at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+3. In Settings, select **Gmail** as the provider
+4. Enter your Gmail address and the 16-character app password
+5. Click **Save settings** then **Send test notification** to verify
 
-### Step 2 — Generate a Gmail App Password
+### SMTP
 
-1. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
-2. In the **App name** field, type `Price Tracker`
-3. Click **Create**
-4. Copy the 16-character password — you will not be able to see it again
+In Settings, select **SMTP** as the provider and enter:
 
-> ⚠️ Keep this password secret and never commit it to version control.
+| Field | Description |
+|---|---|
+| Host | Your SMTP server hostname |
+| Port | Usually 465 (SSL) or 587 (STARTTLS) |
+| Username | Your SMTP username |
+| Password | Your SMTP password |
+| From address | The address emails will be sent from |
+| Use TLS | Enable for SSL/STARTTLS connections |
 
-### Step 3 — Add credentials to your `.env` file
-```
-GMAIL_ADDRESS=your.gmail.address@gmail.com
-GMAIL_APP_PASSWORD=abcdefghijklmnop
-```
-
-### Step 4 — Test the configuration
-
-1. Go to `http://localhost:8000/docs`
-2. Click **Authorize** and log in
-3. Find `POST /alerts/test-email` and click **Try it out** → **Execute**
-4. Check your inbox
+Click **Save settings** then **Send test notification** to verify.
 
 ### Adding other notification providers
 
@@ -220,11 +252,12 @@ class TelegramProvider(NotificationProvider):
     def send(self, subject: str, body: str, recipient: str) -> bool:
         ...
 
-def get_provider() -> NotificationProvider:
-    provider = os.getenv("NOTIFICATION_PROVIDER", "gmail")
-    if provider == "telegram":
+def get_provider(db: Session) -> NotificationProvider:
+    settings = {s.key: s.value for s in db.query(models.Setting).all()}
+    provider = settings.get('notification_provider', 'smtp')
+    if provider == 'telegram':
         return TelegramProvider()
-    return GmailProvider()
+    ...
 ```
 
 ---
@@ -233,23 +266,25 @@ def get_provider() -> NotificationProvider:
 
 The admin panel is accessible from the navbar for users with admin access. It provides:
 
-- **User management** — view all users, edit username, email, admin status, and active status
-- **Product overview** — view all tracked products across all users with scrape error details
+- **User management** — view all users, edit username, email, admin status, active status, and super admin status
+- **Product overview** — view all tracked products across all users with expandable scrape error details
 
-To reset the admin password from the command line:
+---
+
+## Resetting the Admin Password
+
+Generate a fresh hash:
+```bash
+sudo docker compose exec backend python3 -c "from passlib.context import CryptContext; ctx = CryptContext(schemes=['bcrypt'], deprecated='auto'); print(ctx.hash('yourpassword'))"
+```
+
+Then update it directly in psql:
 ```bash
 sudo docker compose exec db psql -U tracker -d pricetracker
 ```
-
-Then inside psql:
 ```sql
 UPDATE users SET password_hash = 'paste-hash-here' WHERE username = 'admin';
 \q
-```
-
-Generate a fresh hash with:
-```bash
-sudo docker compose exec backend python3 -c "from passlib.context import CryptContext; ctx = CryptContext(schemes=['bcrypt'], deprecated='auto'); print(ctx.hash('yourpassword'))"
 ```
 
 ---
@@ -294,7 +329,7 @@ docker compose up --build -d frontend
 ip addr show | grep "inet " | grep -v 127.0.0.1
 ```
 
-Then visit `http://<your-ip>:3000` from any device on your network.
+Then visit `http://<your-ip>:3001` from any device on your network.
 
 ---
 
@@ -348,7 +383,8 @@ price-tracker/
 │           ├── Dashboard.jsx
 │           ├── ProductDetail.jsx
 │           ├── Profile.jsx
-│           └── Admin.jsx
+│           ├── Admin.jsx
+│           └── Settings.jsx
 └── backend/
     ├── Dockerfile
     ├── requirements.txt
@@ -368,24 +404,27 @@ price-tracker/
         ├── products.py           # Product + source CRUD + scheduler
         ├── prices.py             # Price history + scrape triggers + debug
         ├── alerts.py             # Alert CRUD + test email
-        └── admin.py              # User and product management
+        ├── admin.py              # User and product management
+        └── settings.py           # System settings (super admin only)
 ```
 
 ---
 
 ## Troubleshooting
 
-**Price not found automatically** — add a CSS selector manually. Right-click the price in your browser and use DevTools to find the element's class or ID. Use the `GET /prices/source/{source_id}/debug` endpoint in the API docs to inspect what elements the scraper can see on the page.
+**Price not found automatically** — add a CSS selector manually. Right-click the price in your browser and use DevTools to find the element's class. Use `GET /prices/source/{source_id}/debug` in the API docs to inspect what the scraper sees. Source IDs are shown in the Sources panel for super admins.
 
-**Selector found but price won't parse** — the selector may be returning text that includes extra content (e.g. "£29.99 Save £7.00"). Use a more specific selector that targets just the price element. Check the debug endpoint to see exactly what text is being returned.
+**Selector found but price won't parse** — the selector may be returning extra text. Use the debug endpoint to see exactly what text is being returned and try a more specific selector.
 
-**Site returns 403 or Access Denied** — the site is blocking the scraper. Argos is handled automatically with Firefox. For other blocked sites, try adding them to `FIREFOX_SITES` in `backend/scraper.py`. If that doesn't work, the site may require a paid proxy service.
+**Site returns 403 or Access Denied** — the site is blocking the scraper. Argos is handled automatically with Firefox. For other blocked sites, add the domain to `FIREFOX_SITES` in `backend/scraper.py`. If that doesn't work, the site may require a paid proxy service.
 
-**Scheduler not firing** — check logs with `docker compose logs backend | grep -i "schedul\|❌\|⚠️"`. Make sure `--reload` is not present in the backend Dockerfile CMD as it interferes with APScheduler.
+**Scheduler not firing** — check logs with `docker compose logs backend | grep -i "schedul\|❌\|⚠️"`. Make sure `--reload` is not in the backend Dockerfile CMD.
 
-**Alert emails not arriving** — check logs with `docker compose logs backend | grep -i "email\|gmail"`. Use `POST /alerts/test-email` in the API docs to test. Common causes are incorrect app password or account email not being set.
+**Alert emails not arriving** — go to Settings and use **Send test notification** to verify your configuration. Check logs with `docker compose logs backend | grep -i "email\|smtp\|gmail"`.
 
-**Default admin login fails** — generate a fresh hash and update via psql as described in the Admin Panel section.
+**Session expired** — if you see "Your session has expired" on the login page, your JWT token has expired. Log in again to continue.
+
+**Default admin login fails** — generate a fresh hash and update via psql as described in the Resetting the Admin Password section.
 
 **Frontend showing stale UI after rebuild** — hard refresh with `Ctrl + Shift + R` or open in a private/incognito window.
 
