@@ -55,8 +55,18 @@ export default function ProductDetail() {
   }
 
   const validHistory = history.filter(h => h.price !== null)
+
+  // Get latest price per source then take the lowest
+  const bySource = {}
+  validHistory.forEach(h => {
+    if (!bySource[h.source_id] || new Date(h.scraped_at) > new Date(bySource[h.source_id].scraped_at)) {
+      bySource[h.source_id] = h
+    }
+  })
+  const latestPrices = Object.values(bySource)
+  const latest = latestPrices.length > 0
+    ? latestPrices.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b) : null
   const errors = history.filter(h => h.error)
-  const latest = validHistory[validHistory.length - 1]
   const lowestEntry = validHistory.length > 1 ? validHistory.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b) : null
   const highestEntry = validHistory.length > 1 ? validHistory.reduce((a, b) => parseFloat(a.price) > parseFloat(b.price) ? a : b) : null
   const sources = product?.sources || []
