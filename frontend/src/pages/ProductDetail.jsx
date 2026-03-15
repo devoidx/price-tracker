@@ -6,6 +6,7 @@ import { getProducts, getPriceHistory, triggerScrape, deleteProduct, updateProdu
 import PriceChart from '../components/PriceChart'
 import AlertsPanel from '../components/AlertsPanel'
 import SourcesPanel from '../components/SourcesPanel'
+import { useAuth } from '../context/AuthContext'
 import { Trash2, ArrowLeft, AlertCircle, Pencil, RefreshCw } from 'lucide-react'
 
 export default function ProductDetail() {
@@ -17,6 +18,7 @@ export default function ProductDetail() {
   const [showEdit, setShowEdit] = useState(false)
   const [editName, setEditName] = useState('')
   const [showScrapeConfirm, setShowScrapeConfirm] = useState(false)
+  const { user } = useAuth()
 
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: () => getProducts().then(r => r.data) })
   const product = products.find(p => p.id === parseInt(id))
@@ -79,10 +81,13 @@ export default function ProductDetail() {
 
       <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={4} mb={6}>
-          <Box>
-            <Heading size="md" mb={1}>{product.name}</Heading>
-            <Text fontSize="xs" color="gray.400">{sources.length} source{sources.length !== 1 ? 's' : ''}</Text>
-          </Box>
+	  <Box>
+             <Heading size="md" mb={1}>{product.name}</Heading>
+             <Text fontSize="xs" color="gray.400">
+               {sources.length} source{sources.length !== 1 ? 's' : ''}
+               {user?.is_super_admin && <Text as="span" color="gray.300"> · product id: {product.id}</Text>}
+             </Text>
+           </Box>
           <HStack>
             <Button size="sm" variant="outline" colorScheme="brand" leftIcon={<Pencil size={13} />} onClick={() => { setEditName(product.name); setShowEdit(true) }}>
               Rename
@@ -131,7 +136,7 @@ export default function ProductDetail() {
       </Box>
 
       <Box mb={5}>
-        <SourcesPanel product={product} />
+	<SourcesPanel product={product} isSuperAdmin={user?.is_super_admin} />
       </Box>
 
       {errors.length > 0 && (
