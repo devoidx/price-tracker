@@ -178,6 +178,7 @@ The scraper uses Chromium by default. For sites that block Chromium, Firefox is 
 | Gadgetverse | ✅ Working |
 | CCL Computers | ✅ Working |
 | John Lewis | ❌ Blocked |
+| CPC | ❌ Blocked |
 
 To add Firefox support for additional sites, add the domain to `FIREFOX_SITES` in `backend/scraper.py`.
 

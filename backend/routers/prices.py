@@ -58,7 +58,7 @@ def debug_source(source_id: int, db: Session = Depends(get_db), current_user: mo
     if not product:
         raise HTTPException(status_code=403, detail="Not authorised")
 
-    FIREFOX_SITES = ['argos.co.uk']
+    from scraper import FIREFOX_SITES
     use_firefox = any(site in source.url for site in FIREFOX_SITES)
 
     with sync_playwright() as p:
