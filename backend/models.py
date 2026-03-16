@@ -67,3 +67,12 @@ class Setting(Base):
     key = Column(String(100), primary_key=True)
     value = Column(Text)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+class KnownSelector(Base):
+    __tablename__ = "known_selectors"
+    id = Column(Integer, primary_key=True)
+    domain = Column(String(255), nullable=False)
+    selector = Column(String(255), nullable=False)
+    label = Column(String(100))
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())

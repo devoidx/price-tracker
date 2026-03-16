@@ -92,3 +92,25 @@ class AlertOut(BaseModel):
 
 class SettingsUpdate(BaseModel):
     settings: Dict[str, str]
+
+class KnownSelectorCreate(BaseModel):
+    domain: str
+    selector: str
+    label: Optional[str] = None
+    active: bool = True
+
+class KnownSelectorUpdate(BaseModel):
+    domain: Optional[str] = None
+    selector: Optional[str] = None
+    label: Optional[str] = None
+    active: Optional[bool] = None
+
+class KnownSelectorOut(BaseModel):
+    id: int
+    domain: str
+    selector: str
+    label: Optional[str]
+    active: bool
+    created_at: datetime
+    class Config:
+        from_attributes = True

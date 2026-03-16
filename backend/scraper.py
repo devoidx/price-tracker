@@ -143,14 +143,36 @@ def scrape_price(url: str, selector: str = None) -> dict:
         except (InvalidOperation, Exception) as e:
             return {"price": None, "error": f"Could not parse price from '{raw_text}': {e}"}
 
-
 def scrape_and_save(source_id: int, db: Session):
     source = db.query(models.Source).filter(models.Source.id == source_id).first()
     if not source or not source.active:
         return
 
     logger.info(f"Scraping source {source.id}: {source.label} ({source.url})")
-    result = scrape_price(source.url, source.selector)
+
+    # If source has an explicit selector use it, otherwise try known selectors first
+    if source.selector:
+        result = scrape_price(source.url, source.selector)
+    else:
+        from urllib.parse import urlparse
+        domain = urlparse(source.url).hostname or ''
+        domain = domain.replace('www.', '')
+        known = db.query(models.KnownSelector).filter(
+            models.KnownSelector.domain == domain,
+            models.KnownSelector.active == True
+        ).all()
+
+        result = None
+        for ks in known:
+            logger.info(f"Trying known selector '{ks.selector}' for {domain}")
+            r = scrape_price(source.url, ks.selector)
+            if r['price'] is not None:
+                result = r
+                logger.info(f"Known selector '{ks.selector}' succeeded for {domain}")
+                break
+
+        if result is None:
+            result = scrape_price(source.url, None)
 
     entry = models.PriceHistory(
         source_id=source.id,
@@ -168,3 +190,4 @@ def scrape_and_save(source_id: int, db: Session):
             check_alerts(source.product_id, result["price"], db)
         except Exception as e:
             logger.error(f"Alert check failed for source {source_id}: {e}")
+

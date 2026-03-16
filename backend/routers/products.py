@@ -67,11 +67,28 @@ def add_source(product_id: int, source: schemas.SourceCreate, db: Session = Depe
     if len(product.sources) >= 5:
         raise HTTPException(status_code=400, detail="Maximum of 5 sources per product")
     label = source.label or label_from_url(source.url)
+
+    # Auto-apply first known selector for this domain if no selector provided
+    selector = source.selector
+    if not selector:
+        try:
+            domain = urlparse(source.url).hostname or ''
+            domain = domain.replace('www.', '')
+            known = db.query(models.KnownSelector).filter(
+                models.KnownSelector.domain == domain,
+                models.KnownSelector.active == True
+            ).first()
+            if known:
+                selector = known.selector
+                logger.info(f"Auto-applied known selector '{selector}' for {domain}")
+        except Exception as e:
+            logger.warning(f"Failed to look up known selector: {e}")
+
     new_source = models.Source(
         product_id=product_id,
         label=label,
         url=source.url,
-        selector=source.selector,
+        selector=selector,
         interval_minutes=source.interval_minutes,
     )
     db.add(new_source)

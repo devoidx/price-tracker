@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Box, Heading, Button, Badge, Table, Thead, Tbody, Tr, Th, Td, HStack, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, FormControl, FormLabel, Input, Switch, VStack, Alert, AlertIcon, Text, Icon, IconButton } from '@chakra-ui/react'
-import { getAdminUsers, getAdminProducts, getAdminProductHistory, deactivateUser, adminUpdateUser } from '../api'
+import { getAdminUsers, getAdminProducts, getAdminProductHistory, deactivateUser, adminUpdateUser, getSelectors, createSelector, updateSelector, deleteSelector } from '../api'
+import { UserX, Pencil, ChevronDown, ChevronUp, AlertCircle, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { UserX, Pencil, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 
 export default function Admin() {
+  const [showAddSelector, setShowAddSelector] = useState(false)
+  const [editingSelector, setEditingSelector] = useState(null)
+  const [selectorForm, setSelectorForm] = useState({ domain: '', selector: '', label: '', active: true })
+  const [selectorError, setSelectorError] = useState('')
+  const [selectorLoading, setSelectorLoading] = useState(false)
   const queryClient = useQueryClient()
   const { user: current_user } = useAuth()
   const [editingUser, setEditingUser] = useState(null)
@@ -22,6 +27,8 @@ export default function Admin() {
     queryFn: () => expandedProduct ? getAdminProductHistory(expandedProduct).then(r => r.data) : Promise.resolve([]),
     enabled: !!expandedProduct
   })
+
+  const { data: selectors = [] } = useQuery({ queryKey: ['selectors'], queryFn: () => getSelectors().then(r => r.data) })
 
   const expandedErrors = expandedHistory.filter(h => h.error)
 
@@ -55,6 +62,43 @@ export default function Admin() {
     } finally {
       setEditLoading(false)
     }
+  }
+
+  const openAddSelector = () => {
+    setSelectorForm({ domain: '', selector: '', label: '', active: true })
+    setSelectorError('')
+    setShowAddSelector(true)
+  }
+
+  const openEditSelector = (s) => {
+    setEditingSelector(s)
+    setSelectorForm({ domain: s.domain, selector: s.selector, label: s.label || '', active: s.active })
+    setSelectorError('')
+  }
+
+  const handleSelectorSave = async () => {
+    setSelectorLoading(true)
+    setSelectorError('')
+    try {
+      if (editingSelector) {
+        await updateSelector(editingSelector.id, selectorForm)
+      } else {
+        await createSelector(selectorForm)
+      }
+      queryClient.invalidateQueries(['selectors'])
+      setShowAddSelector(false)
+      setEditingSelector(null)
+    } catch (err) {
+      setSelectorError(err.response?.data?.detail || 'Failed to save selector')
+    } finally {
+      setSelectorLoading(false)
+    }
+  }
+
+  const handleDeleteSelector = async (id) => {
+    if (!confirm('Delete this selector?')) return
+    await deleteSelector(id)
+    queryClient.invalidateQueries(['selectors'])
   }
 
   return (
@@ -170,6 +214,93 @@ export default function Admin() {
           </Tbody>
         </Table>
       </Box>
+
+     <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mt={5}>
+  <HStack justify="space-between" mb={4}>
+    <Heading size="sm">Known selectors ({selectors.length})</Heading>
+    {current_user?.is_super_admin && (
+      <Button size="sm" colorScheme="brand" leftIcon={<Plus size={13} />} onClick={openAddSelector}>
+        Add selector
+      </Button>
+    )}
+  </HStack>
+  <Table size="sm">
+    <Thead>
+      <Tr><Th>Domain</Th><Th>Selector</Th><Th>Label</Th><Th>Status</Th>{current_user?.is_super_admin && <Th></Th>}</Tr>
+    </Thead>
+    <Tbody>
+      {selectors.map(s => (
+        <Tr key={s.id}>
+          <Td fontWeight={500}>{s.domain}</Td>
+          <Td fontFamily="mono" fontSize="xs">{s.selector}</Td>
+          <Td fontSize="xs" color="gray.500">{s.label || '—'}</Td>
+          <Td><Badge colorScheme={s.active ? 'green' : 'gray'} fontSize="xs">{s.active ? 'Active' : 'Inactive'}</Badge></Td>
+          {current_user?.is_super_admin && (
+            <Td>
+              <HStack spacing={1}>
+                <IconButton size="xs" variant="ghost" colorScheme="brand" icon={<Pencil size={11} />} onClick={() => openEditSelector(s)} aria-label="Edit" />
+                <IconButton size="xs" variant="ghost" colorScheme="red" icon={<Trash2 size={11} />} onClick={() => handleDeleteSelector(s.id)} aria-label="Delete" />
+              </HStack>
+            </Td>
+          )}
+        </Tr>
+      ))}
+    </Tbody>
+  </Table>
+</Box>
+
+{/* Add/edit selector modal */}
+{(showAddSelector || editingSelector) && (
+  <Modal isOpen onClose={() => { setShowAddSelector(false); setEditingSelector(null) }}>
+    <ModalOverlay />
+    <ModalContent borderRadius="xl">
+      <ModalHeader>{editingSelector ? 'Edit selector' : 'Add selector'}</ModalHeader>
+      <ModalBody>
+        <VStack spacing={4}>
+          {selectorError && <Alert status="error" borderRadius="md"><AlertIcon />{selectorError}</Alert>}
+          <FormControl isRequired>
+            <FormLabel fontSize="sm">Domain</FormLabel>
+            <Input
+              value={selectorForm.domain}
+              onChange={e => setSelectorForm({...selectorForm, domain: e.target.value})}
+              placeholder="amazon.co.uk"
+              focusBorderColor="brand.500"
+            />
+          </FormControl>
+          <FormControl isRequired>
+            <FormLabel fontSize="sm">Selector</FormLabel>
+            <Input
+              value={selectorForm.selector}
+              onChange={e => setSelectorForm({...selectorForm, selector: e.target.value})}
+              placeholder=".a-offscreen"
+              focusBorderColor="brand.500"
+              fontFamily="mono"
+            />
+          </FormControl>
+          <FormControl>
+            <FormLabel fontSize="sm">Label</FormLabel>
+            <Input
+              value={selectorForm.label}
+              onChange={e => setSelectorForm({...selectorForm, label: e.target.value})}
+              placeholder="Main price"
+              focusBorderColor="brand.500"
+            />
+          </FormControl>
+          <FormControl display="flex" alignItems="center" justifyContent="space-between">
+            <FormLabel fontSize="sm" mb={0}>Active</FormLabel>
+            <Switch isChecked={selectorForm.active} onChange={e => setSelectorForm({...selectorForm, active: e.target.checked})} colorScheme="brand" />
+          </FormControl>
+        </VStack>
+      </ModalBody>
+      <ModalFooter gap={3}>
+        <Button variant="ghost" onClick={() => { setShowAddSelector(false); setEditingSelector(null) }}>Cancel</Button>
+        <Button colorScheme="brand" isLoading={selectorLoading} onClick={handleSelectorSave}>
+          {editingSelector ? 'Save changes' : 'Add selector'}
+        </Button>
+      </ModalFooter>
+    </ModalContent>
+  </Modal>
+)}
 
       {/* Edit user modal */}
       {editingUser && (

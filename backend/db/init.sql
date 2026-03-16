@@ -82,3 +82,23 @@ VALUES (
     TRUE,
     TRUE
 ) ON CONFLICT (username) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS known_selectors (
+    id SERIAL PRIMARY KEY,
+    domain VARCHAR(255) NOT NULL,
+    selector VARCHAR(255) NOT NULL,
+    label VARCHAR(100),
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(domain, selector)
+);
+
+INSERT INTO known_selectors (domain, selector, label) VALUES
+    ('amazon.co.uk', '.a-offscreen', 'Main price'),
+    ('currys.co.uk', '.prod-price', 'Main price'),
+    ('argos.co.uk', 'h2', 'Main price'),
+    ('ebay.co.uk', '.x-price-primary', 'Main price'),
+    ('overclockers.co.uk', '.price__amount', 'Main price'),
+    ('gadgetverse.co.uk', '.hM4gpp span', 'Main price'),
+    ('cclonline.com', '.fw-bold.h4', 'Main price')
+ON CONFLICT (domain, selector) DO NOTHING;

@@ -67,3 +67,9 @@ export const getAdminProductHistory = (productId) => api.get(`/admin/products/${
 export const getSettings = () => api.get('/settings')
 export const updateSettings = (data) => api.put('/settings', { settings: data })
 export const testNotification = () => api.post('/settings/test-notification')
+
+// Known selectors
+export const getSelectors = () => api.get('/selectors')
+export const createSelector = (data) => api.post('/selectors', data)
+export const updateSelector = (id, data) => api.patch(`/selectors/${id}`, data)
+export const deleteSelector = (id) => api.delete(`/selectors/${id}`)
