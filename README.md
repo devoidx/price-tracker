@@ -12,14 +12,15 @@ A self-hosted price tracking application that monitors product prices over time 
 - **Multi-source price comparison** — compare prices across retailers on a single graph, each source shown as its own line
 - **Scheduled scraping** — each source has its own configurable check interval (15 minutes to 24 hours)
 - **Persistent scheduler** — scrape schedules survive backend restarts and maintain their original timing
+- **Known selectors** — CSS selectors for popular retailers are stored in the database and auto-applied when adding new sources
 - **Price history graphs** — visualise how prices change over time with current, lowest, and highest price stats
 - **Price change indicators** — dashboard cards show week-over-week price change with green/red trend arrows
 - **Dashboard sorting and filtering** — sort by name, price, last scraped, or biggest price drop; filter by name
 - **Price alerts** — get email notifications when a price drops below a target, hits a new all-time low, or decreases since the last check
 - **User profiles** — users can update their email address and change their password
 - **Multi-user support** — each user has their own tracked products and price history
-- **Admin panel** — manage users, edit profiles, grant admin access, and view scrape errors across all products
-- **Super admin** — dedicated super admin role with access to system settings and notification configuration
+- **Admin panel** — manage users, edit profiles, grant admin access, view scrape errors, and manage known selectors
+- **Super admin** — dedicated super admin role with access to system settings, notification configuration, and selector management
 - **Configurable notifications** — choose between Gmail and SMTP for alert emails, configured via the settings page
 - **Manual scrape trigger** — scrape any product or individual source on demand
 - **Error tracking** — failed scrapes are logged with error details on the product detail page
@@ -110,8 +111,8 @@ docker compose exec db psql -U tracker -d pricetracker -c "UPDATE users SET emai
 | Role | Permissions |
 |---|---|
 | User | Track products, manage own alerts, update own profile |
-| Admin | All user permissions + manage users, view all products and scrape errors |
-| Super admin | All admin permissions + access settings page, configure notifications, grant super admin to others |
+| Admin | All user permissions + manage users, view all products and scrape errors, view known selectors |
+| Super admin | All admin permissions + access settings page, configure notifications, manage known selectors, grant super admin to others |
 
 The default `admin` account is a super admin. Additional super admins can be promoted via the Admin panel.
 
@@ -132,55 +133,47 @@ Each product can have up to 5 sources. For each source:
 
 1. Enter the retailer URL
 2. Optionally enter a label (e.g. "Amazon") — auto-generated from the URL if left blank
-3. Optionally enter a CSS selector for the price element (see below)
+3. Optionally enter a CSS selector — auto-applied from the known selectors database if the domain is recognised
 4. Choose how often to check the price
 
 Sources can be edited, paused, or deleted individually from the Sources panel.
 
+### Known selectors
+
+When adding a source for a recognised retailer, the CSS selector is automatically applied from the known selectors database. If a source has no explicit selector, the scraper will try all known selectors for that domain before falling back to auto-detection.
+
+Known selectors can be viewed by all admins and managed (add, edit, delete) by super admins via the Admin panel.
+
 ### Finding a CSS selector
 
-The CSS selector tells the scraper where to find the price on the page.
+If a site isn't in the known selectors database, you can find the selector manually:
 
 1. Right-click the price on the product page
 2. Click **Inspect**
 3. Look at the highlighted element — note its tag and class names
 4. Build a selector from the class, e.g. `.price__amount` or `.fw-bold.h4`
 
-If no selector is provided, the scraper will attempt to detect the price automatically.
+Use `GET /prices/source/{source_id}/debug` in the API docs to inspect what the scraper sees on any page. Source IDs are visible in the Sources panel for super admins.
 
-Some known working selectors for popular UK retailers:
+Once you find a working selector, add it to the known selectors database via the Admin panel so it's available for future sources on the same domain.
 
-| Site | Selector |
-|---|---|
-| Amazon UK | `.a-offscreen` |
-| Currys | `.prod-price` |
-| Argos | `h2` |
-| eBay | `.x-price-primary` |
-| Overclockers | `.price__amount` |
-| Gadgetverse | `.hM4gpp span` |
-| CCL Computers | `.fw-bold.h4` |
+### Known working selectors
 
-### Debugging a selector
-
-Use the debug endpoint to inspect what the scraper sees on any page. In the API docs at `http://localhost:8000/docs`, find `GET /prices/source/{source_id}/debug` and run it with the source ID. Source IDs are visible in the Sources panel for super admins.
+| Site | Selector | Notes |
+|---|---|---|
+| Amazon UK | `.a-offscreen` | |
+| Currys | `.prod-price` | |
+| Argos | `h2` | Uses Firefox |
+| eBay | `.x-price-primary` | |
+| Overclockers | `.price__amount` | |
+| Gadgetverse | `.hM4gpp span` | |
+| CCL Computers | `.fw-bold.h4` | |
+| John Lewis | — | ❌ Blocked |
+| CPC/Farnell | — | ❌ Blocked |
 
 ### Scraper compatibility
 
-The scraper uses Chromium by default. For sites that block Chromium, Firefox is used automatically.
-
-| Retailer | Status |
-|---|---|
-| Amazon UK | ✅ Working |
-| Currys | ✅ Working |
-| Argos | ✅ Working (Firefox) |
-| eBay | ✅ Working |
-| Overclockers | ✅ Working |
-| Gadgetverse | ✅ Working |
-| CCL Computers | ✅ Working |
-| John Lewis | ❌ Blocked |
-| CPC | ❌ Blocked |
-
-To add Firefox support for additional sites, add the domain to `FIREFOX_SITES` in `backend/scraper.py`.
+The scraper uses Chromium by default. For sites that block Chromium, Firefox is used automatically. To add Firefox support for additional sites, add the domain to `FIREFOX_SITES` in `backend/scraper.py`.
 
 ### Price comparison graph
 
@@ -204,7 +197,7 @@ Alerts are evaluated across all sources for a product — if any source hits the
 
 ### User profile
 
-Click **Profile** in the navbar to update your email address or change your password. The email address is where alert notifications will be delivered.
+Click **Profile** in the navbar to update your email address or change your password.
 
 ### Running in the background
 ```bash
@@ -247,7 +240,7 @@ Click **Save settings** then **Send test notification** to verify.
 
 ### Adding other notification providers
 
-The notification system is extensible. To add a new provider (e.g. Telegram, Ntfy, Discord), add a new class to `backend/notifications.py` and update `get_provider()`:
+The notification system is extensible. To add a new provider, add a new class to `backend/notifications.py` and update `get_provider()`:
 ```python
 class TelegramProvider(NotificationProvider):
     def send(self, subject: str, body: str, recipient: str) -> bool:
@@ -269,6 +262,7 @@ The admin panel is accessible from the navbar for users with admin access. It pr
 
 - **User management** — view all users, edit username, email, admin status, active status, and super admin status
 - **Product overview** — view all tracked products across all users with expandable scrape error details
+- **Known selectors** — view all known selectors; super admins can add, edit, and delete entries
 
 ---
 
@@ -399,21 +393,22 @@ price-tracker/
     ├── notifications.py          # Email/notification providers
     ├── alerts.py                 # Alert checking logic
     ├── db/
-    │   └── init.sql              # Database schema + default admin user
+    │   └── init.sql              # Database schema + seed data
     └── routers/
         ├── users.py              # Register, login, /me, password change
         ├── products.py           # Product + source CRUD + scheduler
         ├── prices.py             # Price history + scrape triggers + debug
         ├── alerts.py             # Alert CRUD + test email
         ├── admin.py              # User and product management
-        └── settings.py           # System settings (super admin only)
+        ├── settings.py           # System settings (super admin only)
+        └── selectors.py          # Known selectors CRUD
 ```
 
 ---
 
 ## Troubleshooting
 
-**Price not found automatically** — add a CSS selector manually. Right-click the price in your browser and use DevTools to find the element's class. Use `GET /prices/source/{source_id}/debug` in the API docs to inspect what the scraper sees. Source IDs are shown in the Sources panel for super admins.
+**Price not found automatically** — the domain may not be in the known selectors database. Add a CSS selector manually, verify it works, then add it to the known selectors via the Admin panel. Use `GET /prices/source/{source_id}/debug` in the API docs to inspect what the scraper sees. Source IDs are shown in the Sources panel for super admins.
 
 **Selector found but price won't parse** — the selector may be returning extra text. Use the debug endpoint to see exactly what text is being returned and try a more specific selector.
 
