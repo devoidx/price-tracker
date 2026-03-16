@@ -54,6 +54,12 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS firefox_sites (
+    id SERIAL PRIMARY KEY,
+    domain VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_price_history_source_id ON price_history(source_id);
 CREATE INDEX IF NOT EXISTS idx_price_history_scraped_at ON price_history(scraped_at);
 CREATE INDEX IF NOT EXISTS idx_sources_product_id ON sources(product_id);
@@ -70,8 +76,11 @@ INSERT INTO settings (key, value) VALUES
     ('smtp_username', ''),
     ('smtp_password', ''),
     ('smtp_from_address', ''),
-    ('smtp_use_tls', 'true')
+    ('smtp_use_tls', 'true'),
 ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO firefox_sites (domain) VALUES ('argos.co.uk')
+ON CONFLICT (domain) DO NOTHING;
 
 -- Default admin user (password: changeme)
 INSERT INTO users (username, email, password_hash, is_admin, is_super_admin)

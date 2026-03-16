@@ -24,7 +24,7 @@ def update_settings(body: schemas.SettingsUpdate, db: Session = Depends(get_db),
     ALLOWED_KEYS = {
         'notification_provider', 'gmail_address', 'gmail_app_password',
         'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password',
-        'smtp_from_address', 'smtp_use_tls'
+        'smtp_from_address', 'smtp_use_tls', 'firefox_sites'
     }
     for key, value in body.settings.items():
         if key not in ALLOWED_KEYS:

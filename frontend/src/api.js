@@ -73,3 +73,8 @@ export const getSelectors = () => api.get('/selectors')
 export const createSelector = (data) => api.post('/selectors', data)
 export const updateSelector = (id, data) => api.patch(`/selectors/${id}`, data)
 export const deleteSelector = (id) => api.delete(`/selectors/${id}`)
+
+// Firefox sites
+export const getFirefoxSites = () => api.get('/firefox-sites')
+export const addFirefoxSite = (data) => api.post('/firefox-sites', data)
+export const deleteFirefoxSite = (id) => api.delete(`/firefox-sites/${id}`)

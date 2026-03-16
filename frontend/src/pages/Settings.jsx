@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Box, Heading, Text, Button, VStack, HStack, FormControl, FormLabel, FormHelperText, Input, Select, Switch, Alert, AlertIcon, Divider, Badge } from '@chakra-ui/react'
+import { Box, Heading, Text, Button, VStack, HStack, FormControl, FormLabel, FormHelperText, Input, Select, Switch, Alert, AlertIcon, Divider } from '@chakra-ui/react'
 import { getSettings, updateSettings, testNotification } from '../api'
 
 export default function Settings() {
@@ -56,7 +56,6 @@ export default function Settings() {
         </Alert>
       )}
 
-      {/* Notification provider */}
       <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Heading size="sm" mb={1}>Notifications</Heading>
         <Text fontSize="sm" color="gray.500" mb={4}>Configure how price alert emails are sent</Text>

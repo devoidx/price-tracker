@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Box, Heading, Button, Badge, Table, Thead, Tbody, Tr, Th, Td, HStack, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, FormControl, FormLabel, Input, Switch, VStack, Alert, AlertIcon, Text, Icon, IconButton } from '@chakra-ui/react'
-import { getAdminUsers, getAdminProducts, getAdminProductHistory, deactivateUser, adminUpdateUser, getSelectors, createSelector, updateSelector, deleteSelector } from '../api'
+import { getAdminUsers, getAdminProducts, getAdminProductHistory, deactivateUser, adminUpdateUser, getSelectors, createSelector, updateSelector, deleteSelector, getFirefoxSites, addFirefoxSite, deleteFirefoxSite } from '../api'
 import { UserX, Pencil, ChevronDown, ChevronUp, AlertCircle, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export default function Admin() {
+  const [newFirefoxDomain, setNewFirefoxDomain] = useState('')
+  const [firefoxError, setFirefoxError] = useState('')
+  const [firefoxLoading, setFirefoxLoading] = useState(false)
   const [showAddSelector, setShowAddSelector] = useState(false)
   const [editingSelector, setEditingSelector] = useState(null)
   const [selectorForm, setSelectorForm] = useState({ domain: '', selector: '', label: '', active: true })
@@ -29,6 +32,8 @@ export default function Admin() {
   })
 
   const { data: selectors = [] } = useQuery({ queryKey: ['selectors'], queryFn: () => getSelectors().then(r => r.data) })
+
+  const { data: firefoxSites = [] } = useQuery({ queryKey: ['firefoxSites'], queryFn: () => getFirefoxSites().then(r => r.data) })
 
   const expandedErrors = expandedHistory.filter(h => h.error)
 
@@ -101,6 +106,27 @@ export default function Admin() {
     queryClient.invalidateQueries(['selectors'])
   }
 
+  const handleAddFirefoxSite = async () => {
+    if (!newFirefoxDomain.trim()) return
+    setFirefoxLoading(true)
+    setFirefoxError('')
+    try {
+      await addFirefoxSite({ domain: newFirefoxDomain.trim() })
+      queryClient.invalidateQueries(['firefoxSites'])
+      setNewFirefoxDomain('')
+    } catch (err) {
+      setFirefoxError(err.response?.data?.detail || 'Failed to add site')
+    } finally {
+      setFirefoxLoading(false)
+    }
+  }
+
+  const handleDeleteFirefoxSite = async (id) => {
+    if (!confirm('Remove this site?')) return
+    await deleteFirefoxSite(id)
+    queryClient.invalidateQueries(['firefoxSites'])
+  }
+
   return (
     <Box maxW="1100px" mx="auto" px={6} py={8}>
       <Heading size="lg" mb={8}>Admin panel</Heading>
@@ -127,7 +153,7 @@ export default function Admin() {
                 <Td>
                   <Badge colorScheme={u.active ? 'green' : 'gray'}>{u.active ? 'Active' : 'Inactive'}</Badge>
                 </Td>
-                <Td fontSize="xs" color="gray.400">{new Date(u.created_at).toLocaleDateString()}</Td>
+		    <Td fontSize="xs" color="gray.400">{new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Td>
                 <Td>
                   <HStack spacing={2}>
                     <Button size="xs" colorScheme="brand" variant="outline" leftIcon={<Pencil size={11} />} onClick={() => openEdit(u)}>
@@ -247,6 +273,51 @@ export default function Admin() {
       ))}
     </Tbody>
   </Table>
+</Box>
+
+<Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mt={5}>
+  <Heading size="sm" mb={1}>Firefox scraper sites ({firefoxSites.length})</Heading>
+  <Text fontSize="sm" color="gray.500" mb={4}>
+    Sites listed here are scraped using Firefox instead of Chromium — use for sites that block headless Chromium.
+  </Text>
+  {firefoxError && <Alert status="error" borderRadius="md" mb={3}><AlertIcon />{firefoxError}</Alert>}
+  <Table size="sm" mb={4}>
+    <Thead>
+      <Tr><Th>Domain</Th><Th>Added</Th>{current_user?.is_super_admin && <Th></Th>}</Tr>
+    </Thead>
+    <Tbody>
+      {firefoxSites.length === 0 && (
+        <Tr><Td colSpan={3} color="gray.400" fontSize="sm">No sites configured</Td></Tr>
+      )}
+      {firefoxSites.map(s => (
+        <Tr key={s.id}>
+          <Td fontWeight={500}>{s.domain}</Td>
+	      <Td fontSize="xs" color="gray.400">{new Date(s.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Td>
+          {current_user?.is_super_admin && (
+            <Td>
+              <IconButton size="xs" variant="ghost" colorScheme="red" icon={<Trash2 size={11} />} onClick={() => handleDeleteFirefoxSite(s.id)} aria-label="Delete" />
+            </Td>
+          )}
+        </Tr>
+      ))}
+    </Tbody>
+  </Table>
+  {current_user?.is_super_admin && (
+    <HStack>
+      <Input
+        value={newFirefoxDomain}
+        onChange={e => setNewFirefoxDomain(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && handleAddFirefoxSite()}
+        placeholder="e.g. argos.co.uk"
+        focusBorderColor="brand.500"
+        size="sm"
+        maxW="300px"
+      />
+      <Button size="sm" colorScheme="brand" leftIcon={<Plus size={13} />} isLoading={firefoxLoading} onClick={handleAddFirefoxSite}>
+        Add
+      </Button>
+    </HStack>
+  )}
 </Box>
 
 {/* Add/edit selector modal */}

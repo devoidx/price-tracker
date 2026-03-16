@@ -58,8 +58,9 @@ def debug_source(source_id: int, db: Session = Depends(get_db), current_user: mo
     if not product:
         raise HTTPException(status_code=403, detail="Not authorised")
 
-    from scraper import FIREFOX_SITES
-    use_firefox = any(site in source.url for site in FIREFOX_SITES)
+    from scraper import get_firefox_sites
+    firefox_sites = get_firefox_sites(db)
+    use_firefox = any(site in source.url for site in firefox_sites)
 
     with sync_playwright() as p:
         browser = (p.firefox if use_firefox else p.chromium).launch(headless=True)

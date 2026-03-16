@@ -76,3 +76,9 @@ class KnownSelector(Base):
     label = Column(String(100))
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
+
+class FirefoxSite(Base):
+    __tablename__ = "firefox_sites"
+    id = Column(Integer, primary_key=True)
+    domain = Column(String(255), unique=True, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())

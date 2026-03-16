@@ -114,3 +114,13 @@ class KnownSelectorOut(BaseModel):
     created_at: datetime
     class Config:
         from_attributes = True
+
+class FirefoxSiteOut(BaseModel):
+    id: int
+    domain: str
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class FirefoxSiteCreate(BaseModel):
+    domain: str

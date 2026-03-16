@@ -5,9 +5,12 @@ from playwright.sync_api import sync_playwright
 from sqlalchemy.orm import Session
 import models
 
-FIREFOX_SITES = ['argos.co.uk']
 
 logger = logging.getLogger(__name__)
+
+def get_firefox_sites(db: Session) -> list:
+    sites = db.query(models.FirefoxSite).all()
+    return [s.domain for s in sites]
 
 def clean_price(text: str) -> Decimal:
     text = text.strip()
@@ -33,7 +36,9 @@ def clean_price(text: str) -> Decimal:
 
 def scrape_price(url: str, selector: str = None) -> dict:
     # Use Firefox for sites known to block Chromium
-    use_firefox = any(site in url for site in FIREFOX_SITES)
+    if firefox_sites is None:
+        firefox_sites = [] 
+    use_firefox = any(site in url for site in firefox_sites)
     logger.info(f"Using {'Firefox' if use_firefox else 'Chromium'} for {url}")
 
     with sync_playwright() as p:
@@ -148,11 +153,12 @@ def scrape_and_save(source_id: int, db: Session):
     if not source or not source.active:
         return
 
+    firefox_sites = get_firefox_sites(db)
     logger.info(f"Scraping source {source.id}: {source.label} ({source.url})")
 
     # If source has an explicit selector use it, otherwise try known selectors first
     if source.selector:
-        result = scrape_price(source.url, source.selector)
+        result = scrape_price(source.url, source.selector, firefox_sites)
     else:
         from urllib.parse import urlparse
         domain = urlparse(source.url).hostname or ''
@@ -165,14 +171,14 @@ def scrape_and_save(source_id: int, db: Session):
         result = None
         for ks in known:
             logger.info(f"Trying known selector '{ks.selector}' for {domain}")
-            r = scrape_price(source.url, ks.selector)
+            r = scrape_price(source.url, ks.selector, firefox_sites)
             if r['price'] is not None:
                 result = r
                 logger.info(f"Known selector '{ks.selector}' succeeded for {domain}")
                 break
 
         if result is None:
-            result = scrape_price(source.url, None)
+            result = scrape_price(source.url, None, firefox_sites)
 
     entry = models.PriceHistory(
         source_id=source.id,
