@@ -13,3 +13,5 @@ apscheduler==3.10.4
 pydantic[email]==2.7.1
 psycopg2-binary==2.9.9
 apscheduler[sqlalchemy]
+mypy
+sqlalchemy[mypy]

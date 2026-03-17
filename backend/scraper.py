@@ -34,7 +34,7 @@ def clean_price(text: str) -> Decimal:
         text = text.replace(',', '.')
     return Decimal(text)
 
-def scrape_price(url: str, selector: str = None) -> dict:
+def scrape_price(url: str, selector: str = None, firefox_sites: list = None) -> dict:
     # Use Firefox for sites known to block Chromium
     if firefox_sites is None:
         firefox_sites = [] 
@@ -79,7 +79,8 @@ def scrape_price(url: str, selector: str = None) -> dict:
         if not use_firefox:
             page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "stylesheet", "font"] else route.continue_())
         try:
-            wait_strategy = "networkidle" if use_firefox else "domcontentloaded"
+            from typing import Literal
+            wait_strategy: Literal["networkidle", "domcontentloaded"] = "networkidle" if use_firefox else "domcontentloaded"
             response = page.goto(url, wait_until=wait_strategy, timeout=30000)
             if response and response.status >= 400:
                browser.close()
@@ -97,6 +98,9 @@ def scrape_price(url: str, selector: str = None) -> dict:
         if selector:
             try:
                 element = page.wait_for_selector(selector, timeout=10000)
+                if element is None:
+                    browser.close()
+                    return {"price": None, "error": f"Selector '{selector}' not found on page"}
                 raw_text = element.inner_text()
             except Exception:
                 browser.close()
@@ -179,6 +183,8 @@ def scrape_and_save(source_id: int, db: Session):
 
         if result is None:
             result = scrape_price(source.url, None, firefox_sites)
+        if result is None:
+            result = {"price": None, "error": "Scraper returned no result"}
 
     entry = models.PriceHistory(
         source_id=source.id,

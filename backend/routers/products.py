@@ -6,6 +6,9 @@ from database import get_db
 import models, schemas, auth
 from scheduler import schedule_source, unschedule_source
 
+import logging
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/products", tags=["products"])
 
 def label_from_url(url: str) -> str:
