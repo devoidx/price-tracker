@@ -9,6 +9,23 @@ import SourcesPanel from '../components/SourcesPanel'
 import { useAuth } from '../context/AuthContext'
 import { Trash2, ArrowLeft, AlertCircle, Pencil, RefreshCw } from 'lucide-react'
 
+const CURRENCY_SYMBOLS = {
+  GBP: '£', USD: '$', EUR: '€', JPY: '¥',
+  CAD: 'CA$', AUD: 'A$', CHF: 'Fr',
+  SEK: 'kr', NOK: 'kr', DKK: 'kr'
+}
+
+const formatPrice = (price, currency, convertedPrice, userCurrency) => {
+  if (!price) return '—'
+  const sym = CURRENCY_SYMBOLS[currency] || currency
+  const base = `${sym}${Number(price).toFixed(2)}`
+  if (convertedPrice && currency !== userCurrency) {
+    const userSym = CURRENCY_SYMBOLS[userCurrency] || userCurrency
+    return `${base} (${userSym}${Number(convertedPrice).toFixed(2)})`
+  }
+  return base
+}
+
 export default function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -57,8 +74,10 @@ export default function ProductDetail() {
   }
 
   const validHistory = history.filter(h => h.price !== null)
+  const errors = history.filter(h => h.error)
+  const sources = product?.sources || []
 
-  // Get latest price per source then take the lowest
+  // Get latest price per source then take the lowest (using converted price if available)
   const bySource = {}
   validHistory.forEach(h => {
     if (!bySource[h.source_id] || new Date(h.scraped_at) > new Date(bySource[h.source_id].scraped_at)) {
@@ -66,12 +85,23 @@ export default function ProductDetail() {
     }
   })
   const latestPrices = Object.values(bySource)
-  const latest = latestPrices.length > 0
-    ? latestPrices.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b) : null
-  const errors = history.filter(h => h.error)
-  const lowestEntry = validHistory.length > 1 ? validHistory.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b) : null
-  const highestEntry = validHistory.length > 1 ? validHistory.reduce((a, b) => parseFloat(a.price) > parseFloat(b.price) ? a : b) : null
-  const sources = product?.sources || []
+  const lowestCurrent = latestPrices.length > 0
+    ? latestPrices.reduce((a, b) => {
+        const aPrice = parseFloat(a.converted_price || a.price)
+        const bPrice = parseFloat(b.converted_price || b.price)
+        return aPrice < bPrice ? a : b
+      })
+    : null
+
+  const lowestEntry = validHistory.length > 1
+    ? validHistory.reduce((a, b) => parseFloat(a.converted_price || a.price) < parseFloat(b.converted_price || b.price) ? a : b)
+    : null
+  const highestEntry = validHistory.length > 1
+    ? validHistory.reduce((a, b) => parseFloat(a.converted_price || a.price) > parseFloat(b.converted_price || b.price) ? a : b)
+    : null
+
+  const userCurrency = lowestCurrent?.user_currency || 'GBP'
+  const userSym = CURRENCY_SYMBOLS[userCurrency] || userCurrency
 
   if (!product) return <Text p={8} color="gray.400">Loading...</Text>
 
@@ -81,13 +111,13 @@ export default function ProductDetail() {
 
       <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={4} mb={6}>
-	  <Box>
-             <Heading size="md" mb={1}>{product.name}</Heading>
-             <Text fontSize="xs" color="gray.400">
-               {sources.length} source{sources.length !== 1 ? 's' : ''}
-               {user?.is_super_admin && <Text as="span" color="gray.300"> · product id: {product.id}</Text>}
-             </Text>
-           </Box>
+          <Box>
+            <Heading size="md" mb={1}>{product.name}</Heading>
+            <Text fontSize="xs" color="gray.400">
+              {sources.length} source{sources.length !== 1 ? 's' : ''}
+              {user?.is_super_admin && <Text as="span" color="gray.300"> · product id: {product.id}</Text>}
+            </Text>
+          </Box>
           <HStack>
             <Button size="sm" variant="outline" colorScheme="brand" leftIcon={<Pencil size={13} />} onClick={() => { setEditName(product.name); setShowEdit(true) }}>
               Rename
@@ -107,20 +137,36 @@ export default function ProductDetail() {
           <Stat>
             <StatLabel fontSize="xs" color="gray.400">CURRENT LOW</StatLabel>
             <StatNumber fontSize="2xl" color="brand.500">
-              {latest ? `£${Number(latest.price).toFixed(2)}` : '—'}
+              {lowestCurrent
+                ? formatPrice(
+                    lowestCurrent.converted_price || lowestCurrent.price,
+                    lowestCurrent.converted_price ? userCurrency : lowestCurrent.currency,
+                    null,
+                    userCurrency
+                  )
+                : '—'}
             </StatNumber>
+            {lowestCurrent && lowestCurrent.converted_price && (
+              <StatHelpText fontSize="xs">
+                {formatPrice(lowestCurrent.price, lowestCurrent.currency, null, null)}
+              </StatHelpText>
+            )}
           </Stat>
           {lowestEntry && (
             <Stat>
               <StatLabel fontSize="xs" color="gray.400">ALL-TIME LOW</StatLabel>
-              <StatNumber fontSize="2xl" color="green.500">£{parseFloat(lowestEntry.price).toFixed(2)}</StatNumber>
+              <StatNumber fontSize="2xl" color="green.500">
+                {formatPrice(lowestEntry.price, lowestEntry.currency, lowestEntry.converted_price, userCurrency)}
+              </StatNumber>
               <StatHelpText fontSize="xs">{new Date(lowestEntry.scraped_at).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}</StatHelpText>
             </Stat>
           )}
           {highestEntry && (
             <Stat>
               <StatLabel fontSize="xs" color="gray.400">ALL-TIME HIGH</StatLabel>
-              <StatNumber fontSize="2xl" color="red.400">£{parseFloat(highestEntry.price).toFixed(2)}</StatNumber>
+              <StatNumber fontSize="2xl" color="red.400">
+                {formatPrice(highestEntry.price, highestEntry.currency, highestEntry.converted_price, userCurrency)}
+              </StatNumber>
               <StatHelpText fontSize="xs">{new Date(highestEntry.scraped_at).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}</StatHelpText>
             </Stat>
           )}
@@ -130,13 +176,14 @@ export default function ProductDetail() {
           </Stat>
         </Grid>
       </Box>
+
       <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Heading size="sm" mb={5}>Price history</Heading>
-        <PriceChart history={history} sources={sources} />
+        <PriceChart history={history} sources={sources} userCurrency={userCurrency} />
       </Box>
 
       <Box mb={5}>
-	<SourcesPanel product={product} isSuperAdmin={user?.is_super_admin} />
+        <SourcesPanel product={product} isSuperAdmin={user?.is_super_admin} />
       </Box>
 
       {errors.length > 0 && (

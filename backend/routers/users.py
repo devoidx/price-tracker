@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database import get_db
 from pydantic import BaseModel
+from currencies import SUPPORTED_CURRENCIES, fetch_exchange_rates
 import models, schemas, auth
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -61,3 +62,23 @@ def update_profile(body: ProfileUpdate, db: Session = Depends(get_db), current_u
     db.commit()
     db.refresh(current_user)
     return current_user
+
+class CurrencyUpdate(BaseModel):
+    default_currency: str
+
+@router.put("/me/currency")
+def update_currency(body: CurrencyUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if body.default_currency not in SUPPORTED_CURRENCIES:
+        raise HTTPException(status_code=400, detail=f"Unsupported currency: {body.default_currency}")
+    current_user.default_currency = body.default_currency
+    db.commit()
+    return {"message": "Currency updated"}
+
+@router.get("/currencies")
+def get_currencies():
+    return SUPPORTED_CURRENCIES
+
+@router.get("/exchange-rates")
+def get_exchange_rates(db: Session = Depends(get_db), _: models.User = Depends(auth.get_current_user)):
+    rates = db.query(models.ExchangeRate).all()
+    return [{"from_currency": r.from_currency, "to_currency": r.to_currency, "rate": float(r.rate), "fetched_at": r.fetched_at} for r in rates]

@@ -79,8 +79,28 @@ def load_all_jobs(db: Session):
             schedule_source(source)
     logger.info(f"Loaded {len(sources)} sources into scheduler")
 
+def refresh_exchange_rates():
+    from currencies import fetch_exchange_rates
+    db = SessionLocal()
+    try:
+        fetch_exchange_rates(db)
+    finally:
+        db.close()
+
 def start_scheduler(db: Session):
     scheduler.add_listener(job_event_listener, EVENT_JOB_ERROR | EVENT_JOB_MISSED | EVENT_JOB_EXECUTED)
     scheduler.start()
     load_all_jobs(db)
+
+    if not scheduler.get_job('exchange_rate_refresh'):
+        scheduler.add_job(
+            refresh_exchange_rates,
+            trigger='interval',
+            hours=24,
+            id='exchange_rate_refresh',
+            replace_existing=True
+        )
+        logger.info("Scheduled daily exchange rate refresh")
+
+    refresh_exchange_rates()
     logger.info("Scheduler started")

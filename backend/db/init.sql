@@ -111,3 +111,15 @@ INSERT INTO known_selectors (domain, selector, label) VALUES
     ('gadgetverse.co.uk', '.hM4gpp span', 'Main price'),
     ('cclonline.com', '.fw-bold.h4', 'Main price')
 ON CONFLICT (domain, selector) DO NOTHING;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS default_currency VARCHAR(10) DEFAULT 'GBP';
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'GBP';
+
+CREATE TABLE IF NOT EXISTS exchange_rates (
+    id SERIAL PRIMARY KEY,
+    from_currency VARCHAR(10) NOT NULL,
+    to_currency VARCHAR(10) NOT NULL,
+    rate NUMERIC(20, 8) NOT NULL,
+    fetched_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(from_currency, to_currency)
+);

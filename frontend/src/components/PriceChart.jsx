@@ -3,6 +3,12 @@ import { Box, Text } from '@chakra-ui/react'
 
 const SOURCE_COLOURS = ['#319795', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6']
 
+const CURRENCY_SYMBOLS = {
+  GBP: '£', USD: '$', EUR: '€', JPY: '¥',
+  CAD: 'CA$', AUD: 'A$', CHF: 'Fr',
+  SEK: 'kr', NOK: 'kr', DKK: 'kr'
+}
+
 const formatTick = (timestamp) => {
   const d = new Date(timestamp)
   return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -15,8 +21,10 @@ const formatTooltipLabel = (timestamp) => {
   })
 }
 
-export default function PriceChart({ history, sources }) {
+export default function PriceChart({ history, sources, userCurrency = 'GBP' }) {
   if (!history || history.length === 0) return <Text fontSize="sm" color="gray.400">No price data yet</Text>
+
+  const userSym = CURRENCY_SYMBOLS[userCurrency] || userCurrency
 
   const getLabel = (sourceId) => {
     if (!sources) return sourceId
@@ -24,14 +32,18 @@ export default function PriceChart({ history, sources }) {
     return source ? source.label : sourceId
   }
 
-  // Group valid history by source
+  // Group valid history by source, using converted price if available
   const bySource = {}
   history.forEach(h => {
     if (h.price === null) return
     if (!bySource[h.source_id]) bySource[h.source_id] = []
+    const displayPrice = h.converted_price || h.price
     bySource[h.source_id].push({
       time: new Date(h.scraped_at).getTime(),
-      price: parseFloat(h.price)
+      price: parseFloat(displayPrice),
+      originalPrice: parseFloat(h.price),
+      currency: h.currency,
+      convertedPrice: h.converted_price ? parseFloat(h.converted_price) : null,
     })
   })
 
@@ -44,6 +56,11 @@ export default function PriceChart({ history, sources }) {
     bySource[sourceId].forEach(point => {
       if (!timeMap[point.time]) timeMap[point.time] = { time: point.time }
       timeMap[point.time][`source_${sourceId}`] = point.price
+      timeMap[point.time][`meta_${sourceId}`] = {
+        originalPrice: point.originalPrice,
+        currency: point.currency,
+        convertedPrice: point.convertedPrice,
+      }
     })
   })
 
@@ -76,13 +93,22 @@ export default function PriceChart({ history, sources }) {
           <YAxis
             domain={[minPrice - padding, maxPrice + padding]}
             tick={{ fontSize: 11 }}
-            tickFormatter={v => `£${v.toFixed(2)}`}
+            tickFormatter={v => `${userSym}${v.toFixed(2)}`}
             tickLine={false}
             width={70}
           />
           <Tooltip
             labelFormatter={formatTooltipLabel}
-            formatter={(value, name) => [`£${Number(value).toFixed(2)}`, getLabel(name.replace('source_', ''))]}
+            formatter={(value, name, props) => {
+              const sourceId = name.replace('source_', '')
+              const label = getLabel(sourceId)
+              const meta = props.payload[`meta_${sourceId}`]
+              if (meta && meta.convertedPrice && meta.currency !== userCurrency) {
+                const origSym = CURRENCY_SYMBOLS[meta.currency] || meta.currency
+                return [`${userSym}${Number(value).toFixed(2)} (${origSym}${Number(meta.originalPrice).toFixed(2)})`, label]
+              }
+              return [`${userSym}${Number(value).toFixed(2)}`, label]
+            }}
           />
           <Legend />
           {sourceIds.map((sourceId, i) => (

@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from database import get_db
 import models, schemas, auth
 from scheduler import schedule_source, unschedule_source
+from currencies import detect_currency_from_url
 
 import logging
 logger = logging.getLogger(__name__)
@@ -62,6 +63,8 @@ def get_sources(product_id: int, db: Session = Depends(get_db), current_user: mo
         raise HTTPException(status_code=404, detail="Product not found")
     return product.sources
 
+from currencies import detect_currency_from_url
+
 @router.post("/{product_id}/sources", response_model=schemas.SourceOut)
 def add_source(product_id: int, source: schemas.SourceCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     product = db.query(models.Product).filter(models.Product.id == product_id, models.Product.user_id == current_user.id).first()
@@ -71,7 +74,7 @@ def add_source(product_id: int, source: schemas.SourceCreate, db: Session = Depe
         raise HTTPException(status_code=400, detail="Maximum of 5 sources per product")
     label = source.label or label_from_url(source.url)
 
-    # Auto-apply first known selector for this domain if no selector provided
+    # Auto-apply known selector
     selector = source.selector
     if not selector:
         try:
@@ -87,12 +90,16 @@ def add_source(product_id: int, source: schemas.SourceCreate, db: Session = Depe
         except Exception as e:
             logger.warning(f"Failed to look up known selector: {e}")
 
+    # Auto-detect currency from URL if not specified
+    currency = source.currency if source.currency != 'GBP' else detect_currency_from_url(source.url)
+
     new_source = models.Source(
         product_id=product_id,
         label=label,
         url=source.url,
         selector=selector,
         interval_minutes=source.interval_minutes,
+        currency=currency,
     )
     db.add(new_source)
     db.commit()

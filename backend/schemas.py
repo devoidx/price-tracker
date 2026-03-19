@@ -15,6 +15,7 @@ class UserOut(BaseModel):
     is_admin: bool
     is_super_admin: bool
     active: bool
+    default_currency: str
     created_at: datetime
     class Config:
         from_attributes = True
@@ -28,6 +29,7 @@ class SourceCreate(BaseModel):
     url: str
     selector: Optional[str] = None
     interval_minutes: int = 60
+    currency: str = 'GBP'
 
 class SourceUpdate(BaseModel):
     label: Optional[str] = None
@@ -35,6 +37,7 @@ class SourceUpdate(BaseModel):
     selector: Optional[str] = None
     interval_minutes: Optional[int] = None
     active: Optional[bool] = None
+    currency: Optional[str] = None
 
 class SourceOut(BaseModel):
     id: int
@@ -44,6 +47,7 @@ class SourceOut(BaseModel):
     selector: Optional[str]
     interval_minutes: int
     active: bool
+    currency: str
     created_at: datetime
     class Config:
         from_attributes = True
@@ -124,3 +128,11 @@ class FirefoxSiteOut(BaseModel):
 
 class FirefoxSiteCreate(BaseModel):
     domain: str
+
+class ExchangeRateOut(BaseModel):
+    from_currency: str
+    to_currency: str
+    rate: Decimal
+    fetched_at: datetime
+    class Config:
+        from_attributes = True  

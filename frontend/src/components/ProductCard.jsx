@@ -4,6 +4,12 @@ import { useQuery } from '@tanstack/react-query'
 import { getPriceHistory } from '../api'
 import { TrendingDown, TrendingUp } from 'lucide-react'
 
+const CURRENCY_SYMBOLS = {
+  GBP: '£', USD: '$', EUR: '€', JPY: '¥',
+  CAD: 'CA$', AUD: 'A$', CHF: 'Fr',
+  SEK: 'kr', NOK: 'kr', DKK: 'kr'
+}
+
 export default function ProductCard({ product, nextRun }) {
   const navigate = useNavigate()
 
@@ -24,34 +30,45 @@ export default function ProductCard({ product, nextRun }) {
   })
   const latestPrices = Object.values(bySource)
   const lowestCurrent = latestPrices.length > 0
-    ? latestPrices.reduce((a, b) => parseFloat(a.price) < parseFloat(b.price) ? a : b)
+    ? latestPrices.reduce((a, b) => {
+        const aPrice = parseFloat(a.converted_price || a.price)
+        const bPrice = parseFloat(b.converted_price || b.price)
+        return aPrice < bPrice ? a : b
+      })
     : null
+
+  // Display price — use converted if available
+  const displayPrice = lowestCurrent
+    ? (lowestCurrent.converted_price || lowestCurrent.price)
+    : null
+  const displayCurrency = lowestCurrent?.user_currency || 'GBP'
+  const currencySymbol = CURRENCY_SYMBOLS[displayCurrency] || displayCurrency
 
   // Week-over-week price change
   let priceChange = null
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
   if (lowestCurrent) {
-      const curr = parseFloat(lowestCurrent.price)
-    
-      const sortedHistory = [...validHistory].sort((a, b) => new Date(a.scraped_at) - new Date(b.scraped_at))
-      const weekOldHistory = sortedHistory.filter(h => new Date(h.scraped_at) <= oneWeekAgo)
-    
-      // Fall back to oldest available data if nothing older than 7 days
-      const referenceHistory = weekOldHistory.length > 0 ? weekOldHistory : sortedHistory.slice(0, Math.ceil(sortedHistory.length / 3))
-    
-      if (referenceHistory.length > 0) {
-        const weekOldPrices = {}
-        referenceHistory.forEach(h => {
-          if (!weekOldPrices[h.source_id]) weekOldPrices[h.source_id] = parseFloat(h.price)
-        })
-        const weekOldLowest = Math.min(...Object.values(weekOldPrices))
-        const pct = ((curr - weekOldLowest) / weekOldLowest) * 100
-        if (Math.abs(pct) >= 0.1) {
-          priceChange = { pct, increased: curr > weekOldLowest }
+    const curr = parseFloat(lowestCurrent.converted_price || lowestCurrent.price)
+    const sortedHistory = [...validHistory].sort((a, b) => new Date(a.scraped_at) - new Date(b.scraped_at))
+    const weekOldHistory = sortedHistory.filter(h => new Date(h.scraped_at) <= oneWeekAgo)
+    const referenceHistory = weekOldHistory.length > 0 ? weekOldHistory : sortedHistory.slice(0, Math.ceil(sortedHistory.length / 3))
+
+    if (referenceHistory.length > 0) {
+      const weekOldPrices = {}
+      referenceHistory.forEach(h => {
+        if (!weekOldPrices[h.source_id]) {
+          weekOldPrices[h.source_id] = parseFloat(h.converted_price || h.price)
         }
+      })
+      const weekOldLowest = Math.min(...Object.values(weekOldPrices))
+      const pct = ((curr - weekOldLowest) / weekOldLowest) * 100
+      if (Math.abs(pct) >= 0.1) {
+        priceChange = { pct, increased: curr > weekOldLowest }
       }
     }
+  }
+
   const sourceCount = product.sources?.length || 0
 
   return (
@@ -72,7 +89,7 @@ export default function ProductCard({ product, nextRun }) {
         <>
           <HStack align="baseline" spacing={2}>
             <Text fontSize="2xl" fontWeight={700} color="brand.500">
-              £{Number(lowestCurrent.price).toFixed(2)}
+              {currencySymbol}{Number(displayPrice).toFixed(2)}
             </Text>
             {priceChange && (
               <HStack spacing={1} color={priceChange.increased ? 'red.500' : 'green.500'}>

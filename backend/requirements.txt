@@ -15,3 +15,5 @@ psycopg2-binary==2.9.9
 apscheduler[sqlalchemy]
 mypy
 sqlalchemy[mypy]
+types-requests
+requests

@@ -186,12 +186,13 @@ def scrape_and_save(source_id: int, db: Session):
         if result is None:
             result = {"price": None, "error": "Scraper returned no result"}
 
-    entry = models.PriceHistory(
-        source_id=source.id,
-        price=result["price"],
-        error=result["error"],
-        currency="GBP"
-    )
+        entry = models.PriceHistory(
+            source_id=source.id,
+            price=result["price"],
+            error=result["error"],
+            currency=str(source.currency) if source.currency else 'GBP'
+        ) 
+        
     db.add(entry)
     db.commit()
     logger.info(f"Saved price for {source.label}: {result}")

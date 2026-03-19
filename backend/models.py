@@ -12,6 +12,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     is_super_admin = Column(Boolean, default=False)
     active = Column(Boolean, default=True)
+    default_currency = Column(String(10), default='GBP')
     created_at = Column(DateTime, server_default=func.now())
     products = relationship("Product", back_populates="user")
 
@@ -35,6 +36,7 @@ class Source(Base):
     selector = Column(String(255))
     interval_minutes = Column(Integer, default=60)
     active = Column(Boolean, default=True)
+    currency = Column(String(10), default='GBP')
     created_at = Column(DateTime, server_default=func.now())
     product = relationship("Product", back_populates="sources")
     price_history = relationship("PriceHistory", back_populates="source", cascade="all, delete-orphan")
@@ -82,3 +84,11 @@ class FirefoxSite(Base):
     id = Column(Integer, primary_key=True)
     domain = Column(String(255), unique=True, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+
+class ExchangeRate(Base):
+    __tablename__ = "exchange_rates"
+    id = Column(Integer, primary_key=True)
+    from_currency = Column(String(10), nullable=False)
+    to_currency = Column(String(10), nullable=False)
+    rate = Column(Numeric(20, 8), nullable=False)
+    fetched_at = Column(DateTime, server_default=func.now())

@@ -78,3 +78,7 @@ export const deleteSelector = (id) => api.delete(`/selectors/${id}`)
 export const getFirefoxSites = () => api.get('/firefox-sites')
 export const addFirefoxSite = (data) => api.post('/firefox-sites', data)
 export const deleteFirefoxSite = (id) => api.delete(`/firefox-sites/${id}`)
+
+export const getCurrencies = () => api.get('/users/currencies')
+export const getExchangeRates = () => api.get('/users/exchange-rates')
+export const updateCurrency = (data) => api.put('/users/me/currency', data)

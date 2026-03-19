@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { Box, Button, FormControl, FormLabel, FormHelperText, Input, VStack, Heading, Text, Alert, AlertIcon, Divider, HStack, Badge } from '@chakra-ui/react'
+import { Box, Button, FormControl, FormLabel, FormHelperText, Input, VStack, Heading, Text, Select, Alert, AlertIcon, Divider, HStack, Badge } from '@chakra-ui/react'
 import { useAuth } from '../context/AuthContext'
 import { changePassword, updateProfile } from '../api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getCurrencies, updateCurrency } from '../api'
 
 export default function Profile() {
   const { user, setUser } = useAuth()
@@ -13,6 +15,30 @@ export default function Profile() {
   const [passwords, setPasswords] = useState({ current_password: '', new_password: '', confirm_password: '' })
   const [passwordMsg, setPasswordMsg] = useState(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
+
+  const queryClient = useQueryClient()
+  const [currencyMsg, setCurrencyMsg] = useState(null)
+  const [currencyLoading, setCurrencyLoading] = useState(false)
+  const [selectedCurrency, setSelectedCurrency] = useState(user.default_currency || 'GBP')
+
+  const { data: currencies = {} } = useQuery({
+    queryKey: ['currencies'],
+    queryFn: () => getCurrencies().then(r => r.data)
+  })
+
+  const handleCurrencyUpdate = async () => {
+    setCurrencyLoading(true)
+    setCurrencyMsg(null)
+    try {
+      await updateCurrency({ default_currency: selectedCurrency })
+      setUser({ ...user, default_currency: selectedCurrency })
+      setCurrencyMsg({ type: 'success', text: 'Currency updated successfully' })
+    } catch (err) {
+      setCurrencyMsg({ type: 'error', text: err.response?.data?.detail || 'Failed to update currency' })
+    } finally {
+      setCurrencyLoading(false)
+    }
+  }
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault()
@@ -69,7 +95,33 @@ export default function Profile() {
           <Text fontSize="sm">{new Date(user.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
         </HStack>
       </Box>
-
+<Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mt={5}>
+  <Heading size="sm" mb={4}>Default currency</Heading>
+  <Text fontSize="sm" color="gray.500" mb={4}>
+    Prices will be converted to your preferred currency where exchange rates are available.
+  </Text>
+  {currencyMsg && (
+    <Alert status={currencyMsg.type} borderRadius="md" mb={4}>
+      <AlertIcon />{currencyMsg.text}
+    </Alert>
+  )}
+  <FormControl>
+    <FormLabel fontSize="sm">Currency</FormLabel>
+    <Select
+      value={selectedCurrency}
+      onChange={e => setSelectedCurrency(e.target.value)}
+      focusBorderColor="brand.500"
+      maxW="300px"
+    >
+      {Object.entries(currencies).map(([code, label]) => (
+        <option key={code} value={code}>{label}</option>
+      ))}
+    </Select>
+  </FormControl>
+  <Button mt={4} colorScheme="brand" isLoading={currencyLoading} onClick={handleCurrencyUpdate}>
+    Save currency
+  </Button>
+</Box>
       {/* Email */}
       <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Heading size="sm" mb={4}>Email address</Heading>
@@ -144,6 +196,7 @@ export default function Profile() {
           </VStack>
         </form>
       </Box>
+      
     </Box>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Grid, Heading, Text, Spinner, HStack, Select, Input, InputGroup, InputLeftElement } from '@chakra-ui/react'
+import { Box, Button, Grid, Heading, Text, Spinner, HStack, Select, Input, InputGroup, InputLeftElement, Alert, AlertIcon } from '@chakra-ui/react'
 import { getProducts, getNextRunTimes, getPriceHistory } from '../api'
 import ProductCard from '../components/ProductCard'
 import AddProductModal from '../components/AddProductModal'
@@ -158,7 +158,7 @@ export default function Dashboard() {
           <Text fontSize="xl" fontWeight={600} mb={2}>No products tracked yet</Text>
           <Text color="gray.400" mb={6}>Add a product URL to start tracking its price</Text>
           <Button colorScheme="brand" leftIcon={<Plus size={16} />} onClick={() => setShowAdd(true)}>
-            Track your first product
+             Track your first product
           </Button>
         </Box>
       ) : sorted.length === 0 ? (
@@ -166,11 +166,17 @@ export default function Dashboard() {
           <Text color="gray.400">No products match your search</Text>
         </Box>
       ) : (
-        <Grid templateColumns="repeat(auto-fill, minmax(280px, 1fr))" gap={5}>
-          {sorted.map(p => (
-            <ProductCard key={p.id} product={p} nextRun={nextRunTimes[p.id]} />
-          ))}
-        </Grid>
+        <>
+          <Alert status="info" borderRadius="lg" mb={5} fontSize="sm">
+            <AlertIcon />
+            Prices shown are the listed retail price only and do not include delivery costs or any import taxes that may apply when ordering from outside your country.
+          </Alert>
+          <Grid templateColumns="repeat(auto-fill, minmax(280px, 1fr))" gap={5}>
+            {sorted.map(p => (
+              <ProductCard key={p.id} product={p} nextRun={nextRunTimes[p.id]} />
+            ))}
+          </Grid>
+        </>
       )}
 
       {showAdd && (

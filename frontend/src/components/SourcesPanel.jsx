@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Box, Button, Heading, HStack, Text, Badge, VStack, Input, Select, FormControl, FormLabel, FormHelperText, Switch, Alert, AlertIcon, Table, Thead, Tbody, Tr, Th, Td, IconButton, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@chakra-ui/react'
 import { Plus, Trash2, Pencil, RefreshCw } from 'lucide-react'
-import { getSources, addSource, updateSource, deleteSource, triggerSourceScrape, getNextRunTimes, getPriceHistory } from '../api'
+import { getSources, addSource, updateSource, deleteSource, triggerSourceScrape, getNextRunTimes, getPriceHistory, getCurrencies } from '../api'
 
 const INTERVALS = [
   { label: '15 minutes', value: 15 },
@@ -14,7 +14,13 @@ const INTERVALS = [
   { label: '24 hours', value: 1440 },
 ]
 
-function SourceForm({ form, setForm, onSubmit, error, showActive }) {
+const CURRENCY_SYMBOLS = {
+  GBP: '£', USD: '$', EUR: '€', JPY: '¥',
+  CAD: 'CA$', AUD: 'A$', CHF: 'Fr',
+  SEK: 'kr', NOK: 'kr', DKK: 'kr'
+}
+
+function SourceForm({ form, setForm, onSubmit, error, showActive, currencies }) {
   return (
     <form id="source-form" onSubmit={onSubmit}>
       <VStack spacing={4}>
@@ -50,6 +56,19 @@ function SourceForm({ form, setForm, onSubmit, error, showActive }) {
           <FormHelperText fontSize="xs">Leave blank to auto-detect the price</FormHelperText>
         </FormControl>
         <FormControl>
+          <FormLabel fontSize="sm">Currency</FormLabel>
+          <Select
+            value={form.currency}
+            onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
+            focusBorderColor="brand.500"
+          >
+            {Object.entries(currencies).map(([code, label]) => (
+              <option key={code} value={code}>{label}</option>
+            ))}
+          </Select>
+          <FormHelperText fontSize="xs">Auto-detected from URL — change if incorrect</FormHelperText>
+        </FormControl>
+        <FormControl>
           <FormLabel fontSize="sm">Check interval</FormLabel>
           <Select
             value={form.interval_minutes}
@@ -74,7 +93,7 @@ function SourceForm({ form, setForm, onSubmit, error, showActive }) {
   )
 }
 
-const defaultForm = { label: '', url: '', selector: '', interval_minutes: 60, active: true }
+const defaultForm = { label: '', url: '', selector: '', interval_minutes: 60, active: true, currency: 'GBP' }
 
 export default function SourcesPanel({ product, isSuperAdmin }) {
   const queryClient = useQueryClient()
@@ -102,6 +121,11 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
     refetchInterval: 60000
   })
 
+  const { data: currencies = {} } = useQuery({
+    queryKey: ['currencies'],
+    queryFn: () => getCurrencies().then(r => r.data)
+  })
+
   const lastScrape = {}
   history.forEach(h => {
     if (!lastScrape[h.source_id] || new Date(h.scraped_at) > new Date(lastScrape[h.source_id].scraped_at)) {
@@ -122,7 +146,8 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
       url: source.url,
       selector: source.selector || '',
       interval_minutes: source.interval_minutes,
-      active: source.active
+      active: source.active,
+      currency: source.currency || 'GBP'
     })
     setError('')
   }
@@ -136,7 +161,8 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
         label: form.label || null,
         url: form.url,
         selector: form.selector || null,
-        interval_minutes: parseInt(form.interval_minutes)
+        interval_minutes: parseInt(form.interval_minutes),
+        currency: form.currency
       })
       queryClient.invalidateQueries(['sources', product.id])
       queryClient.invalidateQueries(['nextRunTimes'])
@@ -158,7 +184,8 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
         url: form.url,
         selector: form.selector || null,
         interval_minutes: parseInt(form.interval_minutes),
-        active: form.active
+        active: form.active,
+        currency: form.currency
       })
       queryClient.invalidateQueries(['sources', product.id])
       queryClient.invalidateQueries(['nextRunTimes'])
@@ -210,6 +237,7 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
               <Th>Label</Th>
               {isSuperAdmin && <Th>ID</Th>}
               <Th>URL</Th>
+              <Th>Currency</Th>
               <Th>Interval</Th>
               <Th>Status</Th>
               <Th>Last price</Th>
@@ -220,12 +248,16 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
           <Tbody>
             {sources.map(s => {
               const last = lastScrape[s.id]
+              const sym = CURRENCY_SYMBOLS[s.currency] || s.currency
               return (
                 <Tr key={s.id}>
                   <Td fontWeight={500}>{s.label}</Td>
                   {isSuperAdmin && <Td fontSize="xs" color="gray.400">{s.id}</Td>}
                   <Td fontSize="xs" color="gray.400" maxW="200px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
                     <Text as="a" href={s.url} target="_blank" rel="noreferrer">{s.url}</Text>
+                  </Td>
+                  <Td>
+                    <Badge variant="subtle" fontSize="xs">{s.currency || 'GBP'}</Badge>
                   </Td>
                   <Td>
                     <Badge colorScheme="purple" variant="subtle" fontSize="xs">
@@ -244,7 +276,7 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
                       <Badge colorScheme="red" fontSize="xs">ERROR</Badge>
                     ) : (
                       <Text fontSize="xs" fontWeight={600} color="brand.600">
-                        £{Number(last.price).toFixed(2)}
+                        {sym}{Number(last.price).toFixed(2)}
                       </Text>
                     )}
                   </Td>
@@ -273,7 +305,7 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
         <ModalContent borderRadius="xl">
           <ModalHeader>Add source</ModalHeader>
           <ModalBody>
-            <SourceForm form={form} setForm={setForm} onSubmit={handleAdd} error={error} showActive={false} />
+            <SourceForm form={form} setForm={setForm} onSubmit={handleAdd} error={error} showActive={false} currencies={currencies} />
           </ModalBody>
           <ModalFooter gap={3}>
             <Button variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
@@ -289,7 +321,7 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
           <ModalContent borderRadius="xl">
             <ModalHeader>Edit source — {editingSource.label}</ModalHeader>
             <ModalBody>
-              <SourceForm form={form} setForm={setForm} onSubmit={handleEdit} error={error} showActive={true} />
+              <SourceForm form={form} setForm={setForm} onSubmit={handleEdit} error={error} showActive={true} currencies={currencies} />
             </ModalBody>
             <ModalFooter gap={3}>
               <Button variant="ghost" onClick={() => setEditingSource(null)}>Cancel</Button>

@@ -4,19 +4,37 @@ from typing import List
 from database import get_db
 import models, schemas, auth
 from scraper import scrape_and_save
+from currencies import convert_price, get_currency_symbol
 
 router = APIRouter(prefix="/prices", tags=["prices"])
 
-@router.get("/{product_id}", response_model=List[schemas.PriceHistoryOut])
+@router.get("/{product_id}")
 def get_price_history(product_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     product = db.query(models.Product).filter(models.Product.id == product_id, models.Product.user_id == current_user.id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    user_currency = str(current_user.default_currency) if current_user.default_currency else 'GBP'
     history = []
     for source in product.sources:
+        source_currency = str(source.currency) if source.currency else 'GBP'
         for entry in source.price_history:
-            history.append(entry)
-    history.sort(key=lambda x: x.scraped_at)
+            item = {
+                "id": entry.id,
+                "source_id": entry.source_id,
+                "price": float(entry.price) if entry.price else None,
+                "currency": source_currency,
+                "scraped_at": entry.scraped_at,
+                "error": entry.error,
+                "converted_price": None,
+                "user_currency": user_currency,
+            }
+            if entry.price and source_currency != user_currency:
+                converted = convert_price(entry.price, source_currency, user_currency, db)
+                item["converted_price"] = float(converted) if converted else None
+            history.append(item)
+
+    history.sort(key=lambda x: x["scraped_at"])
     return history
 
 @router.post("/{product_id}/scrape")
