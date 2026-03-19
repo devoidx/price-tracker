@@ -1,10 +1,18 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Grid, Heading, Text, Spinner, HStack, Select, Input, InputGroup, InputLeftElement, Alert, AlertIcon } from '@chakra-ui/react'
 import { getProducts, getNextRunTimes, getPriceHistory } from '../api'
 import ProductCard from '../components/ProductCard'
 import AddProductModal from '../components/AddProductModal'
-import { Plus, Search } from 'lucide-react'
+import { Box, Button, Grid, Heading, Text, Spinner, HStack, Input, InputGroup, InputLeftElement, Menu, MenuButton, MenuList, MenuItem, Alert, AlertIcon } from '@chakra-ui/react'
+import { Plus, Search, ChevronDown } from 'lucide-react'
+
+const SORT_OPTIONS = [
+  { value: 'name', label: 'Name (A–Z)' },
+  { value: 'price_asc', label: 'Price (low to high)' },
+  { value: 'price_desc', label: 'Price (high to low)' },
+  { value: 'last_scraped', label: 'Recently scraped' },
+  { value: 'biggest_drop', label: 'Biggest price drop' },
+]
 
 function useAllHistories(products) {
   const results = useQuery({
@@ -133,23 +141,27 @@ export default function Dashboard() {
               onChange={e => setSearch(e.target.value)}
               focusBorderColor="brand.500"
               size="sm"
-              bg="white" _dark={{ bg: "gray.800" }}
+              bg="white" _dark={{ bg: "gray.800", color: "white" }}
             />
           </InputGroup>
-          <Select
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value)}
-            size="sm"
-            maxW="220px"
-            bg="white" _dark={{ bg: "gray.800" }}
-            focusBorderColor="brand.500"
-          >
-            <option value="name">Sort: Name (A–Z)</option>
-            <option value="price_asc">Sort: Price (low to high)</option>
-            <option value="price_desc">Sort: Price (high to low)</option>
-            <option value="last_scraped">Sort: Recently scraped</option>
-            <option value="biggest_drop">Sort: Biggest price drop</option>
-          </Select>
+          <Menu>
+            <MenuButton
+              as={Button}
+              rightIcon={<ChevronDown size={14} />}
+              size="sm"
+              variant="outline"
+              fontWeight="normal"
+            >
+              Sort: {SORT_OPTIONS.find(o => o.value === sortBy)?.label}
+            </MenuButton>
+            <MenuList fontSize="sm">
+              {SORT_OPTIONS.map(o => (
+                <MenuItem key={o.value} onClick={() => setSortBy(o.value)} fontWeight={sortBy === o.value ? 600 : 400} color={sortBy === o.value ? 'brand.500' : undefined}>
+                  {o.label}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
         </HStack>
       )}
 
@@ -158,7 +170,7 @@ export default function Dashboard() {
           <Text fontSize="xl" fontWeight={600} mb={2}>No products tracked yet</Text>
           <Text color="gray.400" mb={6}>Add a product URL to start tracking its price</Text>
           <Button colorScheme="brand" leftIcon={<Plus size={16} />} onClick={() => setShowAdd(true)}>
-             Track your first product
+            Track your first product
           </Button>
         </Box>
       ) : sorted.length === 0 ? (
