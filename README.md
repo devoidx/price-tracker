@@ -9,22 +9,24 @@ A self-hosted price tracking application that monitors product prices over time 
 ## Features
 
 - **Track any product URL** — add a product and attach up to 5 sources (URLs) from different retailers
-- **Multi-source price comparison** — compare prices across retailers on a single graph, each source shown as its own line
+- **Multi-source price comparison** — compare prices across retailers on a single graph, each source shown as its own coloured line
 - **Scheduled scraping** — each source has its own configurable check interval (15 minutes to 24 hours)
 - **Persistent scheduler** — scrape schedules survive backend restarts and maintain their original timing
 - **Known selectors** — CSS selectors for popular retailers are stored in the database and auto-applied when adding new sources
-- **Price history graphs** — visualise how prices change over time with current, lowest, and highest price stats
+- **Multi-currency support** — set a default currency per user; prices are automatically converted using daily exchange rates
+- **Price history graphs** — time-scaled graphs showing price trends across all sources, displayed in the user's preferred currency
 - **Price change indicators** — dashboard cards show week-over-week price change with green/red trend arrows
 - **Dashboard sorting and filtering** — sort by name, price, last scraped, or biggest price drop; filter by name
 - **Price alerts** — get email notifications when a price drops below a target, hits a new all-time low, or decreases since the last check
-- **User profiles** — users can update their email address and change their password
+- **User profiles** — tabbed interface for managing currency, email, and password
 - **Multi-user support** — each user has their own tracked products and price history
-- **Admin panel** — manage users, edit profiles, grant admin access, view scrape errors, and manage known selectors
-- **Super admin** — dedicated super admin role with access to system settings, notification configuration, and selector management
+- **Admin panel** — tabbed interface for managing users, products, known selectors, and Firefox sites
+- **Super admin** — dedicated role with access to system settings, notification configuration, and scraper management
 - **Configurable notifications** — choose between Gmail and SMTP for alert emails, configured via the settings page
 - **Manual scrape trigger** — scrape any product or individual source on demand
-- **Error tracking** — failed scrapes are logged with error details on the product detail page
+- **Error tracking** — failed scrapes shown on the Errors tab of each product page
 - **Session expiry handling** — automatic redirect to login with a clear message when session expires
+- **Type checking** — mypy runs on every backend build to catch type errors before deployment
 
 ---
 
@@ -38,6 +40,8 @@ A self-hosted price tracking application that monitors product prices over time 
 | Database | PostgreSQL 16 |
 | Auth | JWT (python-jose) + bcrypt |
 | Notifications | Gmail SMTP or any SMTP server (configured via settings page) |
+| Exchange rates | Frankfurter API (ECB data, free, no API key) |
+| Type checking | mypy |
 | Infrastructure | Docker Compose, Nginx |
 
 ---
@@ -111,8 +115,8 @@ docker compose exec db psql -U tracker -d pricetracker -c "UPDATE users SET emai
 | Role | Permissions |
 |---|---|
 | User | Track products, manage own alerts, update own profile |
-| Admin | All user permissions + manage users, view all products and scrape errors, view known selectors |
-| Super admin | All admin permissions + access settings page, configure notifications, manage known selectors, grant super admin to others |
+| Admin | All user permissions + manage users, view all products and scrape errors, view known selectors and Firefox sites |
+| Super admin | All admin permissions + access settings page, configure notifications, manage known selectors and Firefox sites, grant super admin to others |
 
 The default `admin` account is a super admin. Additional super admins can be promoted via the Admin panel.
 
@@ -125,7 +129,7 @@ The default `admin` account is a super admin. Additional super admins can be pro
 1. Click **Track product** on the dashboard
 2. Enter a product name (e.g. "PS5 Controller")
 3. Click the product card to open the detail page
-4. In the **Sources** panel, click **Add source** to add a retailer URL
+4. In the **Sources** tab, click **Add source** to add a retailer URL
 
 ### Adding sources
 
@@ -134,28 +138,36 @@ Each product can have up to 5 sources. For each source:
 1. Enter the retailer URL
 2. Optionally enter a label (e.g. "Amazon") — auto-generated from the URL if left blank
 3. Optionally enter a CSS selector — auto-applied from the known selectors database if the domain is recognised
-4. Choose how often to check the price
+4. Select the currency — auto-detected from the URL domain
+5. Choose how often to check the price
 
-Sources can be edited, paused, or deleted individually from the Sources panel.
+### Product detail page
+
+The product detail page is organised into tabs:
+
+| Tab | Contents |
+|---|---|
+| Overview | Price history graph and stats (current low, all-time low/high, data points) |
+| Sources | Manage retailer URLs, selectors, intervals, and currencies |
+| Alerts | Set up and manage price alert notifications |
+| Errors | Recent scrape errors with source and timestamp (only shown when errors exist) |
 
 ### Known selectors
 
-When adding a source for a recognised retailer, the CSS selector is automatically applied from the known selectors database. If a source has no explicit selector, the scraper will try all known selectors for that domain before falling back to auto-detection.
-
-Known selectors can be viewed by all admins and managed (add, edit, delete) by super admins via the Admin panel.
+When adding a source for a recognised retailer, the CSS selector is automatically applied from the known selectors database. If a source has no explicit selector, the scraper tries all known selectors for that domain before falling back to auto-detection.
 
 ### Finding a CSS selector
 
-If a site isn't in the known selectors database, you can find the selector manually:
+If a site isn't in the known selectors database:
 
 1. Right-click the price on the product page
 2. Click **Inspect**
 3. Look at the highlighted element — note its tag and class names
 4. Build a selector from the class, e.g. `.price__amount` or `.fw-bold.h4`
 
-Use `GET /prices/source/{source_id}/debug` in the API docs to inspect what the scraper sees on any page. Source IDs are visible in the Sources panel for super admins.
+Use `GET /prices/source/{source_id}/debug` in the API docs to inspect what the scraper sees. Source IDs are visible in the Sources tab for super admins.
 
-Once you find a working selector, add it to the known selectors database via the Admin panel so it's available for future sources on the same domain.
+Once you find a working selector, add it to the known selectors database via the Admin panel.
 
 ### Known working selectors
 
@@ -173,11 +185,15 @@ Once you find a working selector, add it to the known selectors database via the
 
 ### Scraper compatibility
 
-The scraper uses Chromium by default. For sites that block Chromium, Firefox is used automatically. To add Firefox support for additional sites, add the domain to `FIREFOX_SITES` in `backend/scraper.py`.
+The scraper uses Chromium by default. For sites that block Chromium, Firefox is used automatically. Firefox sites are managed in the Admin panel under the **Firefox sites** tab — no code changes required.
 
-### Price comparison graph
+### Multi-currency support
 
-When a product has multiple sources, the price history graph shows one line per source in different colours. The X axis is time-scaled so gaps between scrapes are proportional. Hover over any point to see the source name and price.
+Set your preferred currency in **Profile → Currency**. Prices are automatically converted using daily exchange rates fetched from the European Central Bank via the Frankfurter API. The graph, stats, and dashboard cards all display prices in your preferred currency, with the original price shown in brackets where they differ.
+
+Supported currencies: GBP, USD, EUR, JPY, CAD, AUD, CHF, SEK, NOK, DKK.
+
+Currency is also set per source — auto-detected from the URL domain (e.g. `.co.uk` → GBP, `.com` → USD) and adjustable when adding or editing a source.
 
 ### Price change indicators
 
@@ -185,7 +201,7 @@ Dashboard cards show a green arrow and percentage when a price has dropped, or a
 
 ### Setting up alerts
 
-On any product detail page, scroll down to the **Alerts** panel and click **Add alert**. Three alert types are available:
+On any product detail page, go to the **Alerts** tab and click **Add alert**. Three alert types are available:
 
 | Alert type | Description |
 |---|---|
@@ -194,10 +210,6 @@ On any product detail page, scroll down to the **Alerts** panel and click **Add 
 | Any price decrease | Notifies you whenever the price drops compared to the previous scrape |
 
 Alerts are evaluated across all sources for a product — if any source hits the condition, you'll be notified.
-
-### User profile
-
-Click **Profile** in the navbar to update your email address or change your password.
 
 ### Running in the background
 ```bash
@@ -238,31 +250,18 @@ In Settings, select **SMTP** as the provider and enter:
 
 Click **Save settings** then **Send test notification** to verify.
 
-### Adding other notification providers
-
-The notification system is extensible. To add a new provider, add a new class to `backend/notifications.py` and update `get_provider()`:
-```python
-class TelegramProvider(NotificationProvider):
-    def send(self, subject: str, body: str, recipient: str) -> bool:
-        ...
-
-def get_provider(db: Session) -> NotificationProvider:
-    settings = {s.key: s.value for s in db.query(models.Setting).all()}
-    provider = settings.get('notification_provider', 'smtp')
-    if provider == 'telegram':
-        return TelegramProvider()
-    ...
-```
-
 ---
 
 ## Admin Panel
 
-The admin panel is accessible from the navbar for users with admin access. It provides:
+The admin panel is organised into tabs:
 
-- **User management** — view all users, edit username, email, admin status, active status, and super admin status
-- **Product overview** — view all tracked products across all users with expandable scrape error details
-- **Known selectors** — view all known selectors; super admins can add, edit, and delete entries
+| Tab | Contents |
+|---|---|
+| Users | View all users, edit details, manage roles, deactivate accounts |
+| Products | View all tracked products across all users, expand to see scrape errors |
+| Known selectors | View and manage CSS selectors for known retailers |
+| Firefox sites | View and manage sites that require Firefox for scraping |
 
 ---
 
@@ -342,6 +341,9 @@ docker compose exec backend bash
 # Connect to the database
 docker compose exec db psql -U tracker -d pricetracker
 
+# Run mypy type checking manually
+docker compose exec backend python -m mypy . --ignore-missing-imports --exclude '__pycache__'
+
 # Wipe the database and start fresh (caution — deletes all data)
 docker compose down -v
 docker compose up
@@ -382,6 +384,7 @@ price-tracker/
 │           └── Settings.jsx
 └── backend/
     ├── Dockerfile
+    ├── mypy.ini
     ├── requirements.txt
     ├── main.py                   # App entry point + scheduler startup
     ├── database.py               # DB connection
@@ -392,27 +395,31 @@ price-tracker/
     ├── scheduler.py              # APScheduler jobs (persisted to PostgreSQL)
     ├── notifications.py          # Email/notification providers
     ├── alerts.py                 # Alert checking logic
+    ├── currencies.py             # Exchange rates and currency conversion
     ├── db/
     │   └── init.sql              # Database schema + seed data
     └── routers/
-        ├── users.py              # Register, login, /me, password change
+        ├── users.py              # Register, login, /me, password/currency
         ├── products.py           # Product + source CRUD + scheduler
         ├── prices.py             # Price history + scrape triggers + debug
         ├── alerts.py             # Alert CRUD + test email
         ├── admin.py              # User and product management
         ├── settings.py           # System settings (super admin only)
-        └── selectors.py          # Known selectors CRUD
+        ├── selectors.py          # Known selectors CRUD
+        └── firefox_sites.py      # Firefox sites CRUD
 ```
 
 ---
 
 ## Troubleshooting
 
-**Price not found automatically** — the domain may not be in the known selectors database. Add a CSS selector manually, verify it works, then add it to the known selectors via the Admin panel. Use `GET /prices/source/{source_id}/debug` in the API docs to inspect what the scraper sees. Source IDs are shown in the Sources panel for super admins.
+**Price not found automatically** — the domain may not be in the known selectors database. Add a CSS selector manually, verify it works, then add it to the known selectors via the Admin panel. Use `GET /prices/source/{source_id}/debug` in the API docs to inspect what the scraper sees. Source IDs are shown in the Sources tab for super admins.
 
 **Selector found but price won't parse** — the selector may be returning extra text. Use the debug endpoint to see exactly what text is being returned and try a more specific selector.
 
-**Site returns 403 or Access Denied** — the site is blocking the scraper. Argos is handled automatically with Firefox. For other blocked sites, add the domain to `FIREFOX_SITES` in `backend/scraper.py`. If that doesn't work, the site may require a paid proxy service.
+**Site returns 403 or Access Denied** — the site is blocking the scraper. Add the domain to the Firefox sites list in the Admin panel. If Firefox also fails, the site may require a paid proxy service.
+
+**Exchange rates not updating** — check logs with `docker compose logs backend | grep -i "exchange rate"`. Rates are fetched from the Frankfurter API on startup and every 24 hours. If the API is unreachable, rates will remain at their last fetched values.
 
 **Scheduler not firing** — check logs with `docker compose logs backend | grep -i "schedul\|❌\|⚠️"`. Make sure `--reload` is not in the backend Dockerfile CMD.
 
