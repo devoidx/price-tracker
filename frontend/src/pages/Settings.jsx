@@ -56,7 +56,7 @@ export default function Settings() {
         </Alert>
       )}
 
-      <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
+      <Box bg="white" _dark={{ bg: "gray.800" }} borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Heading size="sm" mb={1}>Notifications</Heading>
         <Text fontSize="sm" color="gray.500" mb={4}>Configure how price alert emails are sent</Text>
 

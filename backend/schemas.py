@@ -16,6 +16,7 @@ class UserOut(BaseModel):
     is_super_admin: bool
     active: bool
     default_currency: str
+    color_mode: str
     created_at: datetime
     class Config:
         from_attributes = True

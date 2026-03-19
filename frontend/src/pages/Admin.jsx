@@ -122,7 +122,7 @@ export default function Admin() {
     <Box maxW="1100px" mx="auto" px={6} py={8}>
       <Heading size="lg" mb={8}>Admin panel</Heading>
 
-      <Box bg="white" borderRadius="xl" boxShadow="sm" overflow="hidden">
+      <Box bg="white" _dark={{ bg: "gray.800" }} borderRadius="xl" boxShadow="sm" overflow="hidden">
         <Tabs colorScheme="brand" px={2}>
           <TabList borderBottomColor="gray.100">
             <Tab fontSize="sm">Users ({users.length})</Tab>
@@ -192,7 +192,7 @@ export default function Admin() {
                       </Tr>
                       {expandedProduct === p.id && (
                         <Tr key={`${p.id}-errors`}>
-                          <Td colSpan={5} bg="gray.50" p={4}>
+                          <Td colSpan={5} bg="gray.50" _dark={{ bg: "gray.700" }} p={4}>
                             {expandedErrors.length === 0 ? (
                               <Text fontSize="sm" color="gray.400">No scrape errors</Text>
                             ) : (

@@ -73,7 +73,7 @@ export default function ProductCard({ product, nextRun }) {
 
   return (
     <Box
-      bg="#b2f5ea" borderRadius="xl" p={6} boxShadow="sm" cursor="pointer"
+      bg="#b2f5ea" _dark={{ bg: "teal.800" }} borderRadius="xl" p={6} boxShadow="sm" cursor="pointer"
       transition="all 0.15s" _hover={{ transform: 'translateY(-2px)', boxShadow: 'md' }}
       onClick={() => navigate(`/products/${product.id}`)}
     >

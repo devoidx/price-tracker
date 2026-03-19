@@ -31,7 +31,7 @@ export default function Register() {
 
   return (
     <Box minH="100vh" bg="linear-gradient(135deg, #319795 0%, #838b2ac 100%)" display="flex" alignItems="center" justifyContent="center">
-      <Box bg="white" borderRadius="2xl" p={10} w="100%" maxW="420px" boxShadow="2xl">
+      <Box bg="white" _dark={{ bg: "gray.800" }} borderRadius="2xl" p={10} w="100%" maxW="420px" boxShadow="2xl">
         <VStack spacing={6} align="stretch">
           <Box>
             <Heading size="lg" mb={1}>Create account</Heading>

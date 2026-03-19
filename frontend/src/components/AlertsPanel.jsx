@@ -58,7 +58,7 @@ export default function AlertsPanel({ productId }) {
       </HStack>
 
       {adding && (
-        <Box bg="gray.50" borderRadius="lg" p={4} mb={4}>
+        <Box bg="gray.50" _dark={{ bg: "gray.700" }} borderRadius="lg" p={4} mb={4}>
           <form onSubmit={handleAdd}>
             <VStack spacing={3} align="stretch">
               <FormControl>
@@ -103,7 +103,7 @@ export default function AlertsPanel({ productId }) {
       ) : (
         <VStack spacing={2} align="stretch">
           {alerts.map(alert => (
-            <HStack key={alert.id} justify="space-between" p={3} bg="gray.50" borderRadius="lg">
+            <HStack key={alert.id} justify="space-between" p={3} bg="gray.50" _dark={{ bg: "gray.700" }} borderRadius="lg">
               <HStack spacing={3}>
                 <Switch
                   isChecked={alert.enabled}

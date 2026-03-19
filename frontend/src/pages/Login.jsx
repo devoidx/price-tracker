@@ -33,7 +33,7 @@ export default function Login() {
 
   return (
     <Box minH="100vh" display="flex" alignItems="center" justifyContent="center" bg="brand.50" px={4}>
-      <Box bg="white" borderRadius="2xl" boxShadow="lg" p={8} w="full" maxW="400px">
+      <Box bg="white" _dark={{ bg: "gray.800" }} borderRadius="2xl" boxShadow="lg" p={8} w="full" maxW="400px">
         {sessionExpired && (
           <Alert status="warning" borderRadius="md" mb={4}>
             <AlertIcon />

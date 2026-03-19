@@ -222,7 +222,7 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
       <HStack justify="space-between" mb={4}>
         <Heading size="sm">Sources ({sources.length}/5)</Heading>
         {sources.length < 5 && (
-          <Button size="sm" colorScheme="brand" leftIcon={<Plus size={13} />} onClick={openAdd}>
+          <Button size="sm" colorScheme="brand" variant="solid" leftIcon={<Plus size={13} />} onClick={openAdd}>
             Add source
           </Button>
         )}

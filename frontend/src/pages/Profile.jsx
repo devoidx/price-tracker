@@ -3,9 +3,13 @@ import { Box, Button, FormControl, FormLabel, FormHelperText, Input, VStack, Hea
 import { useAuth } from '../context/AuthContext'
 import { changePassword, updateProfile, getCurrencies, updateCurrency } from '../api'
 import { useQuery } from '@tanstack/react-query'
+import { useColorMode } from '@chakra-ui/react'
+import { updateColorMode } from '../api'
 
 export default function Profile() {
   const { user, setUser } = useAuth()
+  const { colorMode, toggleColorMode } = useColorMode()
+  const [colorModeLoading, setColorModeLoading] = useState(false)
 
   const [email, setEmail] = useState(user.email)
   const [emailMsg, setEmailMsg] = useState(null)
@@ -18,6 +22,20 @@ export default function Profile() {
   const [currencyMsg, setCurrencyMsg] = useState(null)
   const [currencyLoading, setCurrencyLoading] = useState(false)
   const [selectedCurrency, setSelectedCurrency] = useState(user.default_currency || 'GBP')
+
+  const handleColorModeToggle = async () => {
+    setColorModeLoading(true)
+    const newMode = colorMode === 'light' ? 'dark' : 'light'
+    toggleColorMode()
+    try {
+      await updateColorMode({ color_mode: newMode })
+      setUser({ ...user, color_mode: newMode })
+    } catch (err) {
+      toggleColorMode() // revert on error
+    } finally {
+      setColorModeLoading(false)
+    }
+  }
 
   const { data: currencies = {} } = useQuery({
     queryKey: ['currencies'],
@@ -81,7 +99,7 @@ export default function Profile() {
       <Heading size="lg" mb={8}>My Profile</Heading>
 
       {/* Account info */}
-      <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
+      <Box bg="white" _dark={{ bg: "gray.800" }} borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Heading size="sm" mb={4}>Account</Heading>
         <HStack mb={4}>
           <Text fontSize="sm" color="gray.500" w="120px">Username</Text>
@@ -96,10 +114,11 @@ export default function Profile() {
       </Box>
 
       {/* Tabs */}
-      <Box bg="white" borderRadius="xl" boxShadow="sm" overflow="hidden">
+      <Box bg="white" _dark={{ bg: "gray.800" }} borderRadius="xl" boxShadow="sm" overflow="hidden">
         <Tabs colorScheme="brand" px={2}>
           <TabList borderBottomColor="gray.100">
             <Tab fontSize="sm">Currency</Tab>
+            <Tab fontSize="sm">Appearance</Tab>
             <Tab fontSize="sm">Email</Tab>
             <Tab fontSize="sm">Password</Tab>
           </TabList>
@@ -133,7 +152,31 @@ export default function Profile() {
                 Save currency
               </Button>
             </TabPanel>
-
+            <TabPanel>
+              <Text fontSize="sm" color="gray.500" mb={6}>
+                Choose your preferred colour scheme. This setting is saved to your account and applies across all devices.
+              </Text>
+              <HStack spacing={4}>
+                <Button
+                  onClick={handleColorModeToggle}
+                  isLoading={colorModeLoading}
+                  colorScheme="brand"
+                  variant={colorMode === 'light' ? 'solid' : 'outline'}
+                >
+                  ☀️ Light
+                </Button>
+                <Button
+                  onClick={handleColorModeToggle}
+                  isLoading={colorModeLoading}
+                  colorScheme="brand"
+                  variant={colorMode === 'dark' ? 'solid' : 'outline'}
+                  color={colorMode === 'dark' ? 'white' : 'brand.500'}
+                  _dark={{ color: colorMode === 'dark' ? 'white' : 'brand.200' }}
+                >
+                  🌙 Dark
+                </Button>
+              </HStack>
+            </TabPanel>
             {/* Email tab */}
             <TabPanel>
               <Text fontSize="sm" color="gray.500" mb={4}>
@@ -176,7 +219,7 @@ export default function Profile() {
                     <Input
                       type="password"
                       value={passwords.current_password}
-                      onChange={e => setPasswords({...passwords, current_password: e.target.value})}
+                      onChange={e => setPasswords({ ...passwords, current_password: e.target.value })}
                       focusBorderColor="brand.500"
                     />
                   </FormControl>
@@ -186,7 +229,7 @@ export default function Profile() {
                     <Input
                       type="password"
                       value={passwords.new_password}
-                      onChange={e => setPasswords({...passwords, new_password: e.target.value})}
+                      onChange={e => setPasswords({ ...passwords, new_password: e.target.value })}
                       focusBorderColor="brand.500"
                     />
                     <FormHelperText fontSize="xs">Minimum 8 characters</FormHelperText>
@@ -196,7 +239,7 @@ export default function Profile() {
                     <Input
                       type="password"
                       value={passwords.confirm_password}
-                      onChange={e => setPasswords({...passwords, confirm_password: e.target.value})}
+                      onChange={e => setPasswords({ ...passwords, confirm_password: e.target.value })}
                       focusBorderColor="brand.500"
                     />
                   </FormControl>

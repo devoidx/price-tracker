@@ -133,7 +133,7 @@ export default function Dashboard() {
               onChange={e => setSearch(e.target.value)}
               focusBorderColor="brand.500"
               size="sm"
-              bg="white"
+              bg="white" _dark={{ bg: "gray.800" }}
             />
           </InputGroup>
           <Select
@@ -141,7 +141,7 @@ export default function Dashboard() {
             onChange={e => setSortBy(e.target.value)}
             size="sm"
             maxW="220px"
-            bg="white"
+            bg="white" _dark={{ bg: "gray.800" }}
             focusBorderColor="brand.500"
           >
             <option value="name">Sort: Name (A–Z)</option>

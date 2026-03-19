@@ -109,7 +109,7 @@ export default function ProductDetail() {
       <Button variant="ghost" leftIcon={<ArrowLeft size={15} />} mb={6} onClick={() => navigate('/')} size="sm">Back</Button>
 
       {/* Header card */}
-      <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
+      <Box bg="white" _dark={{ bg: "gray.800" }} borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={4} mb={6}>
           <Box>
             <Heading size="md" mb={1}>{product.name}</Heading>
@@ -177,7 +177,7 @@ export default function ProductDetail() {
       </Box>
 
       {/* Tabs */}
-      <Box bg="white" borderRadius="xl" boxShadow="sm" overflow="hidden">
+      <Box bg="white" _dark={{ bg: "gray.800" }} borderRadius="xl" boxShadow="sm" overflow="hidden">
         <Tabs colorScheme="brand" px={2}>
           <TabList borderBottomColor="gray.100">
             <Tab fontSize="sm">Overview</Tab>

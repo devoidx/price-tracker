@@ -7,23 +7,35 @@ import { AuthProvider } from './context/AuthContext'
 import App from './App'
 
 const theme = extendTheme({
+  config: {
+    initialColorMode: 'light',
+    useSystemColorMode: false,
+  },
   colors: {
     brand: {
-      50: '#e6fffa',
+      50:  '#e6fffa',
       100: '#b2f5ea',
+      200: '#81e6d9',
+      300: '#4fd1c5',
+      400: '#38b2ac',
       500: '#319795',
       600: '#2c7a7b',
       700: '#285e61',
+      800: '#1d4044',
+      900: '#132a2c',
     }
   },
   fonts: {
     heading: `-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`,
     body: `-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`,
   },
-  config: {
-    initialColorMode: 'light',
-    useSystemColorMode: false,
-  }
+  components: {
+    Button: {
+      defaultProps: {
+        variant: 'solid',
+      },
+    },
+  },
 })
 
 const queryClient = new QueryClient()

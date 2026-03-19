@@ -82,3 +82,14 @@ def get_currencies():
 def get_exchange_rates(db: Session = Depends(get_db), _: models.User = Depends(auth.get_current_user)):
     rates = db.query(models.ExchangeRate).all()
     return [{"from_currency": r.from_currency, "to_currency": r.to_currency, "rate": float(r.rate), "fetched_at": r.fetched_at} for r in rates]
+
+class ColorModeUpdate(BaseModel):
+    color_mode: str
+
+@router.put("/me/color-mode")
+def update_color_mode(body: ColorModeUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if body.color_mode not in ('light', 'dark'):
+        raise HTTPException(status_code=400, detail="color_mode must be 'light' or 'dark'")
+    current_user.color_mode = body.color_mode
+    db.commit()
+    return {"message": "Color mode updated"}

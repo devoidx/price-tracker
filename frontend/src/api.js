@@ -30,6 +30,7 @@ export const register = (data) => api.post('/users/register', data)
 export const getMe = () => api.get('/users/me')
 export const changePassword = (data) => api.put('/users/me/password', data)
 export const updateProfile = (data) => api.put('/users/me/profile', data)
+export const updateColorMode = (data) => api.put('/users/me/color-mode', data)
 
 // Products
 export const getProducts = () => api.get('/products')
@@ -62,7 +63,6 @@ export const deactivateUser = (id) => api.post(`/admin/users/${id}/deactivate`)
 export const adminUpdateUser = (id, data) => api.patch(`/admin/users/${id}`, data)
 export const getAdminProductHistory = (productId) => api.get(`/admin/products/${productId}/history`)
 
-// Settings
 // Settings
 export const getSettings = () => api.get('/settings')
 export const updateSettings = (data) => api.put('/settings', { settings: data })

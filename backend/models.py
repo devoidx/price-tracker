@@ -13,6 +13,7 @@ class User(Base):
     is_super_admin = Column(Boolean, default=False)
     active = Column(Boolean, default=True)
     default_currency = Column(String(10), default='GBP')
+    color_mode = Column(String(10), default='light')
     created_at = Column(DateTime, server_default=func.now())
     products = relationship("Product", back_populates="user")
 

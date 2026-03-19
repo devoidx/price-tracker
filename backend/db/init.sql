@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_admin BOOLEAN DEFAULT FALSE,
     is_super_admin BOOLEAN DEFAULT FALSE,
     active BOOLEAN DEFAULT TRUE,
+    default_currency VARCHAR(10) DEFAULT 'GBP',
+    color_mode VARCHAR(10) DEFAULT 'light',
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -25,6 +27,7 @@ CREATE TABLE IF NOT EXISTS sources (
     selector VARCHAR(255),
     interval_minutes INTEGER NOT NULL DEFAULT 60,
     active BOOLEAN DEFAULT TRUE,
+    currency VARCHAR(10) DEFAULT 'GBP',
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -111,9 +114,6 @@ INSERT INTO known_selectors (domain, selector, label) VALUES
     ('gadgetverse.co.uk', '.hM4gpp span', 'Main price'),
     ('cclonline.com', '.fw-bold.h4', 'Main price')
 ON CONFLICT (domain, selector) DO NOTHING;
-
-ALTER TABLE users ADD COLUMN IF NOT EXISTS default_currency VARCHAR(10) DEFAULT 'GBP';
-ALTER TABLE sources ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'GBP';
 
 CREATE TABLE IF NOT EXISTS exchange_rates (
     id SERIAL PRIMARY KEY,
