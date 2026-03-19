@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Heading, Text, HStack, Stat, StatLabel, StatNumber, StatHelpText, Grid, Alert, AlertIcon, Icon, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, FormControl, FormLabel, Table, Thead, Tbody, Tr, Th, Td } from '@chakra-ui/react'
+import { Box, Button, Heading, Text, HStack, Stat, StatLabel, StatNumber, StatHelpText, Grid, Alert, AlertIcon, Icon, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, FormControl, FormLabel, Table, Thead, Tbody, Tr, Th, Td, Tabs, TabList, Tab, TabPanels, TabPanel, Badge } from '@chakra-ui/react'
 import { getProducts, getPriceHistory, triggerScrape, deleteProduct, updateProduct } from '../api'
 import PriceChart from '../components/PriceChart'
 import AlertsPanel from '../components/AlertsPanel'
@@ -77,7 +77,6 @@ export default function ProductDetail() {
   const errors = history.filter(h => h.error)
   const sources = product?.sources || []
 
-  // Get latest price per source then take the lowest (using converted price if available)
   const bySource = {}
   validHistory.forEach(h => {
     if (!bySource[h.source_id] || new Date(h.scraped_at) > new Date(bySource[h.source_id].scraped_at)) {
@@ -100,7 +99,7 @@ export default function ProductDetail() {
     ? validHistory.reduce((a, b) => parseFloat(a.converted_price || a.price) > parseFloat(b.converted_price || b.price) ? a : b)
     : null
 
-  const userCurrency = lowestCurrent?.user_currency || 'GBP'
+  const userCurrency = lowestCurrent?.user_currency || user?.default_currency || 'GBP'
   const userSym = CURRENCY_SYMBOLS[userCurrency] || userCurrency
 
   if (!product) return <Text p={8} color="gray.400">Loading...</Text>
@@ -109,6 +108,7 @@ export default function ProductDetail() {
     <Box maxW="1100px" mx="auto" px={6} py={8}>
       <Button variant="ghost" leftIcon={<ArrowLeft size={15} />} mb={6} onClick={() => navigate('/')} size="sm">Back</Button>
 
+      {/* Header card */}
       <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={4} mb={6}>
           <Box>
@@ -141,12 +141,11 @@ export default function ProductDetail() {
                 ? formatPrice(
                     lowestCurrent.converted_price || lowestCurrent.price,
                     lowestCurrent.converted_price ? userCurrency : lowestCurrent.currency,
-                    null,
-                    userCurrency
+                    null, userCurrency
                   )
                 : '—'}
             </StatNumber>
-            {lowestCurrent && lowestCurrent.converted_price && (
+            {lowestCurrent?.converted_price && (
               <StatHelpText fontSize="xs">
                 {formatPrice(lowestCurrent.price, lowestCurrent.currency, null, null)}
               </StatHelpText>
@@ -177,40 +176,67 @@ export default function ProductDetail() {
         </Grid>
       </Box>
 
-      <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
-        <Heading size="sm" mb={5}>Price history</Heading>
-        <PriceChart history={history} sources={sources} userCurrency={userCurrency} />
-      </Box>
+      {/* Tabs */}
+      <Box bg="white" borderRadius="xl" boxShadow="sm" overflow="hidden">
+        <Tabs colorScheme="brand" px={2}>
+          <TabList borderBottomColor="gray.100">
+            <Tab fontSize="sm">Overview</Tab>
+            <Tab fontSize="sm">Sources</Tab>
+            <Tab fontSize="sm">Alerts</Tab>
+            <Tab fontSize="sm">
+              Errors
+              {errors.length > 0 && (
+                <Badge colorScheme="red" ml={2} fontSize="xs">{errors.length}</Badge>
+              )}
+            </Tab>
+          </TabList>
 
-      <Box mb={5}>
-        <SourcesPanel product={product} isSuperAdmin={user?.is_super_admin} />
-      </Box>
+          <TabPanels>
+            {/* Overview */}
+            <TabPanel>
+              <Heading size="sm" mb={5}>Price history</Heading>
+              <PriceChart history={history} sources={sources} userCurrency={userCurrency} />
+            </TabPanel>
 
-      {errors.length > 0 && (
-        <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
-          <HStack mb={4}>
-            <Icon as={AlertCircle} color="red.400" />
-            <Heading size="sm">Recent errors</Heading>
-          </HStack>
-          <Table size="sm">
-            <Thead>
-              <Tr><Th>Time</Th><Th>Source</Th><Th>Error</Th></Tr>
-            </Thead>
-            <Tbody>
-              {errors.slice(-10).reverse().map(e => (
-                <Tr key={e.id}>
-                  <Td fontSize="xs" color="gray.400" whiteSpace="nowrap">{new Date(e.scraped_at).toLocaleString()}</Td>
-                  <Td fontSize="xs" fontWeight={500}>{sources.find(s => s.id === e.source_id)?.label || `Source ${e.source_id}`}</Td>
-                  <Td fontSize="sm" color="red.400">{e.error}</Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        </Box>
-      )}
+            {/* Sources */}
+            <TabPanel p={0}>
+              <SourcesPanel product={product} isSuperAdmin={user?.is_super_admin} />
+            </TabPanel>
 
-      <Box mb={5}>
-        <AlertsPanel productId={parseInt(id)} />
+            {/* Alerts */}
+            <TabPanel p={0}>
+              <AlertsPanel productId={parseInt(id)} />
+            </TabPanel>
+
+            {/* Errors */}
+            <TabPanel>
+              {errors.length === 0 ? (
+                <Text fontSize="sm" color="gray.400">No scrape errors</Text>
+              ) : (
+                <>
+                  <HStack mb={4}>
+                    <Icon as={AlertCircle} color="red.400" />
+                    <Heading size="sm">Recent errors</Heading>
+                  </HStack>
+                  <Table size="sm">
+                    <Thead>
+                      <Tr><Th>Time</Th><Th>Source</Th><Th>Error</Th></Tr>
+                    </Thead>
+                    <Tbody>
+                      {errors.slice(-10).reverse().map(e => (
+                        <Tr key={e.id}>
+                          <Td fontSize="xs" color="gray.400" whiteSpace="nowrap">{new Date(e.scraped_at).toLocaleString()}</Td>
+                          <Td fontSize="xs" fontWeight={500}>{sources.find(s => s.id === e.source_id)?.label || `Source ${e.source_id}`}</Td>
+                          <Td fontSize="sm" color="red.400">{e.error}</Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
+                </>
+              )}
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </Box>
 
       {/* Scrape confirm modal */}

@@ -44,7 +44,7 @@ export default function AlertsPanel({ productId }) {
   }
 
   return (
-    <Box bg="white" borderRadius="xl" p={6} boxShadow="sm">
+    <Box p={6}>
       <HStack justify="space-between" mb={4}>
         <HStack>
           <Icon as={Bell} color="brand.500" />

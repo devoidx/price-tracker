@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { Box, Button, FormControl, FormLabel, FormHelperText, Input, VStack, Heading, Text, Select, Alert, AlertIcon, Divider, HStack, Badge } from '@chakra-ui/react'
+import { Box, Button, FormControl, FormLabel, FormHelperText, Input, VStack, Heading, Text, Select, Alert, AlertIcon, Divider, HStack, Badge, Tabs, TabList, Tab, TabPanels, TabPanel } from '@chakra-ui/react'
 import { useAuth } from '../context/AuthContext'
-import { changePassword, updateProfile } from '../api'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getCurrencies, updateCurrency } from '../api'
+import { changePassword, updateProfile, getCurrencies, updateCurrency } from '../api'
+import { useQuery } from '@tanstack/react-query'
 
 export default function Profile() {
   const { user, setUser } = useAuth()
@@ -16,7 +15,6 @@ export default function Profile() {
   const [passwordMsg, setPasswordMsg] = useState(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
 
-  const queryClient = useQueryClient()
   const [currencyMsg, setCurrencyMsg] = useState(null)
   const [currencyLoading, setCurrencyLoading] = useState(false)
   const [selectedCurrency, setSelectedCurrency] = useState(user.default_currency || 'GBP')
@@ -79,7 +77,7 @@ export default function Profile() {
   }
 
   return (
-    <Box maxW="600px" mx="auto" px={6} py={8}>
+    <Box maxW="700px" mx="auto" px={6} py={8}>
       <Heading size="lg" mb={8}>My Profile</Heading>
 
       {/* Account info */}
@@ -88,115 +86,131 @@ export default function Profile() {
         <HStack mb={4}>
           <Text fontSize="sm" color="gray.500" w="120px">Username</Text>
           <Text fontSize="sm" fontWeight={500}>{user.username}</Text>
-          {user.is_admin && <Badge colorScheme="purple" ml={2}>Admin</Badge>}
+          {user.is_super_admin && <Badge colorScheme="purple" ml={2}>Super admin</Badge>}
+          {user.is_admin && !user.is_super_admin && <Badge colorScheme="blue" ml={2}>Admin</Badge>}
         </HStack>
         <HStack>
           <Text fontSize="sm" color="gray.500" w="120px">Member since</Text>
           <Text fontSize="sm">{new Date(user.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
         </HStack>
       </Box>
-<Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mt={5}>
-  <Heading size="sm" mb={4}>Default currency</Heading>
-  <Text fontSize="sm" color="gray.500" mb={4}>
-    Prices will be converted to your preferred currency where exchange rates are available.
-  </Text>
-  {currencyMsg && (
-    <Alert status={currencyMsg.type} borderRadius="md" mb={4}>
-      <AlertIcon />{currencyMsg.text}
-    </Alert>
-  )}
-  <FormControl>
-    <FormLabel fontSize="sm">Currency</FormLabel>
-    <Select
-      value={selectedCurrency}
-      onChange={e => setSelectedCurrency(e.target.value)}
-      focusBorderColor="brand.500"
-      maxW="300px"
-    >
-      {Object.entries(currencies).map(([code, label]) => (
-        <option key={code} value={code}>{label}</option>
-      ))}
-    </Select>
-  </FormControl>
-  <Button mt={4} colorScheme="brand" isLoading={currencyLoading} onClick={handleCurrencyUpdate}>
-    Save currency
-  </Button>
-</Box>
-      {/* Email */}
-      <Box bg="white" borderRadius="xl" p={6} boxShadow="sm" mb={5}>
-        <Heading size="sm" mb={4}>Email address</Heading>
-        <Text fontSize="sm" color="gray.500" mb={4}>
-          This is where price alert notifications will be sent.
-        </Text>
-        {emailMsg && (
-          <Alert status={emailMsg.type} borderRadius="md" mb={4}>
-            <AlertIcon />{emailMsg.text}
-          </Alert>
-        )}
-        <form onSubmit={handleProfileUpdate}>
-          <VStack spacing={4} align="stretch">
-            <FormControl isRequired>
-              <FormLabel fontSize="sm">Email address</FormLabel>
-              <Input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                focusBorderColor="brand.500"
-              />
-            </FormControl>
-            <Button type="submit" colorScheme="brand" alignSelf="flex-start" isLoading={emailLoading}>
-              Save email
-            </Button>
-          </VStack>
-        </form>
-      </Box>
 
-      {/* Change password */}
-      <Box bg="white" borderRadius="xl" p={6} boxShadow="sm">
-        <Heading size="sm" mb={4}>Change password</Heading>
-        {passwordMsg && (
-          <Alert status={passwordMsg.type} borderRadius="md" mb={4}>
-            <AlertIcon />{passwordMsg.text}
-          </Alert>
-        )}
-        <form onSubmit={handlePasswordChange}>
-          <VStack spacing={4} align="stretch">
-            <FormControl isRequired>
-              <FormLabel fontSize="sm">Current password</FormLabel>
-              <Input
-                type="password"
-                value={passwords.current_password}
-                onChange={e => setPasswords({...passwords, current_password: e.target.value})}
-                focusBorderColor="brand.500"
-              />
-            </FormControl>
-            <Divider />
-            <FormControl isRequired>
-              <FormLabel fontSize="sm">New password</FormLabel>
-              <Input
-                type="password"
-                value={passwords.new_password}
-                onChange={e => setPasswords({...passwords, new_password: e.target.value})}
-                focusBorderColor="brand.500"
-              />
-              <FormHelperText fontSize="xs">Minimum 8 characters</FormHelperText>
-            </FormControl>
-            <FormControl isRequired>
-              <FormLabel fontSize="sm">Confirm new password</FormLabel>
-              <Input
-                type="password"
-                value={passwords.confirm_password}
-                onChange={e => setPasswords({...passwords, confirm_password: e.target.value})}
-                focusBorderColor="brand.500"
-              />
-            </FormControl>
-            <Button type="submit" colorScheme="brand" alignSelf="flex-start" isLoading={passwordLoading}>
-              Change password
-            </Button>
-          </VStack>
-        </form>
+      {/* Tabs */}
+      <Box bg="white" borderRadius="xl" boxShadow="sm" overflow="hidden">
+        <Tabs colorScheme="brand" px={2}>
+          <TabList borderBottomColor="gray.100">
+            <Tab fontSize="sm">Currency</Tab>
+            <Tab fontSize="sm">Email</Tab>
+            <Tab fontSize="sm">Password</Tab>
+          </TabList>
+
+          <TabPanels>
+
+            {/* Currency tab */}
+            <TabPanel>
+              <Text fontSize="sm" color="gray.500" mb={4}>
+                Prices will be converted to your preferred currency where exchange rates are available.
+              </Text>
+              {currencyMsg && (
+                <Alert status={currencyMsg.type} borderRadius="md" mb={4}>
+                  <AlertIcon />{currencyMsg.text}
+                </Alert>
+              )}
+              <FormControl>
+                <FormLabel fontSize="sm">Default currency</FormLabel>
+                <Select
+                  value={selectedCurrency}
+                  onChange={e => setSelectedCurrency(e.target.value)}
+                  focusBorderColor="brand.500"
+                  maxW="300px"
+                >
+                  {Object.entries(currencies).map(([code, label]) => (
+                    <option key={code} value={code}>{label}</option>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button mt={4} colorScheme="brand" isLoading={currencyLoading} onClick={handleCurrencyUpdate}>
+                Save currency
+              </Button>
+            </TabPanel>
+
+            {/* Email tab */}
+            <TabPanel>
+              <Text fontSize="sm" color="gray.500" mb={4}>
+                This is where price alert notifications will be sent.
+              </Text>
+              {emailMsg && (
+                <Alert status={emailMsg.type} borderRadius="md" mb={4}>
+                  <AlertIcon />{emailMsg.text}
+                </Alert>
+              )}
+              <form onSubmit={handleProfileUpdate}>
+                <VStack spacing={4} align="stretch">
+                  <FormControl isRequired>
+                    <FormLabel fontSize="sm">Email address</FormLabel>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      focusBorderColor="brand.500"
+                    />
+                  </FormControl>
+                  <Button type="submit" colorScheme="brand" alignSelf="flex-start" isLoading={emailLoading}>
+                    Save email
+                  </Button>
+                </VStack>
+              </form>
+            </TabPanel>
+
+            {/* Password tab */}
+            <TabPanel>
+              {passwordMsg && (
+                <Alert status={passwordMsg.type} borderRadius="md" mb={4}>
+                  <AlertIcon />{passwordMsg.text}
+                </Alert>
+              )}
+              <form onSubmit={handlePasswordChange}>
+                <VStack spacing={4} align="stretch">
+                  <FormControl isRequired>
+                    <FormLabel fontSize="sm">Current password</FormLabel>
+                    <Input
+                      type="password"
+                      value={passwords.current_password}
+                      onChange={e => setPasswords({...passwords, current_password: e.target.value})}
+                      focusBorderColor="brand.500"
+                    />
+                  </FormControl>
+                  <Divider />
+                  <FormControl isRequired>
+                    <FormLabel fontSize="sm">New password</FormLabel>
+                    <Input
+                      type="password"
+                      value={passwords.new_password}
+                      onChange={e => setPasswords({...passwords, new_password: e.target.value})}
+                      focusBorderColor="brand.500"
+                    />
+                    <FormHelperText fontSize="xs">Minimum 8 characters</FormHelperText>
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel fontSize="sm">Confirm new password</FormLabel>
+                    <Input
+                      type="password"
+                      value={passwords.confirm_password}
+                      onChange={e => setPasswords({...passwords, confirm_password: e.target.value})}
+                      focusBorderColor="brand.500"
+                    />
+                  </FormControl>
+                  <Button type="submit" colorScheme="brand" alignSelf="flex-start" isLoading={passwordLoading}>
+                    Change password
+                  </Button>
+                </VStack>
+              </form>
+            </TabPanel>
+
+          </TabPanels>
+        </Tabs>
       </Box>
-      
     </Box>
   )
 }
+

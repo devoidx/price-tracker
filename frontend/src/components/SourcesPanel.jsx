@@ -218,7 +218,7 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
   }
 
   return (
-    <Box bg="white" borderRadius="xl" p={6} boxShadow="sm">
+    <Box p={6}>
       <HStack justify="space-between" mb={4}>
         <Heading size="sm">Sources ({sources.length}/5)</Heading>
         {sources.length < 5 && (
