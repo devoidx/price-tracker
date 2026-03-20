@@ -160,39 +160,35 @@ def scrape_and_save(source_id: int, db: Session):
     firefox_sites = get_firefox_sites(db)
     logger.info(f"Scraping source {source.id}: {source.label} ({source.url})")
 
-    # If source has an explicit selector use it, otherwise try known selectors first
     if source.selector:
-        result = scrape_price(source.url, source.selector, firefox_sites)
+        result = scrape_price(source.url, str(source.selector), firefox_sites)
     else:
         from urllib.parse import urlparse
-        domain = urlparse(source.url).hostname or ''
+        domain = urlparse(str(source.url)).hostname or ''
         domain = domain.replace('www.', '')
         known = db.query(models.KnownSelector).filter(
             models.KnownSelector.domain == domain,
             models.KnownSelector.active == True
         ).all()
-
         result = None
         for ks in known:
             logger.info(f"Trying known selector '{ks.selector}' for {domain}")
-            r = scrape_price(source.url, ks.selector, firefox_sites)
+            r = scrape_price(str(source.url), str(ks.selector), firefox_sites)
             if r['price'] is not None:
                 result = r
                 logger.info(f"Known selector '{ks.selector}' succeeded for {domain}")
                 break
-
         if result is None:
-            result = scrape_price(source.url, None, firefox_sites)
+            result = scrape_price(str(source.url), None, firefox_sites)
         if result is None:
             result = {"price": None, "error": "Scraper returned no result"}
 
-        entry = models.PriceHistory(
-            source_id=source.id,
-            price=result["price"],
-            error=result["error"],
-            currency=str(source.currency) if source.currency else 'GBP'
-        ) 
-        
+    entry = models.PriceHistory(
+        source_id=source.id,
+        price=result["price"],
+        error=result["error"],
+        currency=str(source.currency) if source.currency else 'GBP'
+    )
     db.add(entry)
     db.commit()
     logger.info(f"Saved price for {source.label}: {result}")
