@@ -32,10 +32,10 @@ A self-hosted price tracking application that monitors product prices over time 
 
 ## Screenshots
 
-### Dashboard (light mode)
+### Dashboard (dark mode)
 ![Dashboard light mode](screenshots/1.png)
 
-### Dashboard (dark mode)
+### Dashboard (light mode)
 ![Dashboard dark mode](screenshots/2.png)
 
 ### Product detail — price history
