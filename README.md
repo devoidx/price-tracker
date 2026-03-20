@@ -30,6 +30,29 @@ A self-hosted price tracking application that monitors product prices over time 
 
 ---
 
+## Screenshots
+
+### Dashboard (light mode)
+![Dashboard light mode](screenshots/1.png)
+
+### Dashboard (dark mode)
+![Dashboard dark mode](screenshots/2.png)
+
+### Product detail — price history
+![Product detail overview](screenshots/3.png)
+
+### Product detail — sources
+![Product detail sources](screenshots/4.png)
+
+### Admin panel
+![Admin panel](screenshots/5.png)
+
+### Settings
+![Settings](screenshots/6.png)
+
+### Profile
+![Profile](screenshots/7.png)
+
 ## Stack
 
 | Layer | Technology |
