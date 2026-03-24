@@ -93,3 +93,13 @@ class ExchangeRate(Base):
     to_currency = Column(String(10), nullable=False)
     rate = Column(Numeric(20, 8), nullable=False)
     fetched_at = Column(DateTime, server_default=func.now())
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    endpoint = Column(Text, nullable=False)
+    p256dh = Column(Text, nullable=False)
+    auth = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    user = relationship("User")

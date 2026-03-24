@@ -80,6 +80,9 @@ INSERT INTO settings (key, value) VALUES
     ('smtp_password', ''),
     ('smtp_from_address', ''),
     ('smtp_use_tls', 'true'),
+    ('vapid_public_key', ''),
+    ('vapid_private_key', ''),
+    ('vapid_email', ''),
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO firefox_sites (domain) VALUES ('argos.co.uk')
@@ -122,4 +125,14 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
     rate NUMERIC(20, 8) NOT NULL,
     fetched_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(from_currency, to_currency)
+);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, endpoint)
 );

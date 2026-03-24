@@ -24,7 +24,8 @@ def update_settings(body: schemas.SettingsUpdate, db: Session = Depends(get_db),
     ALLOWED_KEYS = {
         'notification_provider', 'gmail_address', 'gmail_app_password',
         'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password',
-        'smtp_from_address', 'smtp_use_tls', 'firefox_sites'
+        'smtp_from_address', 'smtp_use_tls',
+        'vapid_public_key', 'vapid_private_key', 'vapid_email'
     }
     for key, value in body.settings.items():
         if key not in ALLOWED_KEYS:
@@ -36,6 +37,34 @@ def update_settings(body: schemas.SettingsUpdate, db: Session = Depends(get_db),
             db.add(models.Setting(key=key, value=value))
     db.commit()
     return {"message": "Settings saved"}
+
+@router.post("/generate-vapid-keys")
+def generate_vapid_keys(db: Session = Depends(get_db), _: models.User = Depends(require_super_admin)):
+    from py_vapid import Vapid
+    import base64
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+    vapid = Vapid()
+    vapid.generate_keys()
+
+    # Public key in uncompressed point format for browsers
+    public_key_bytes = vapid.public_key.public_bytes(
+        encoding=Encoding.X962,
+        format=PublicFormat.UncompressedPoint
+    )
+    public_key = base64.urlsafe_b64encode(public_key_bytes).decode('utf-8').rstrip('=')
+
+    # Private key as PEM string for pywebpush
+    private_key = vapid.private_pem().decode('utf-8')
+
+    for key, value in [('vapid_public_key', public_key), ('vapid_private_key', private_key)]:
+        setting = db.query(models.Setting).filter(models.Setting.key == key).first()
+        if setting:
+            setting.value = value
+        else:
+            db.add(models.Setting(key=key, value=value))
+    db.commit()
+    return {"public_key": public_key, "message": "VAPID keys generated successfully"}
 
 @router.post("/test-notification")
 def test_notification_endpoint(db: Session = Depends(get_db), current_user: models.User = Depends(require_super_admin)):

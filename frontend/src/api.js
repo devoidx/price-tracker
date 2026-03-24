@@ -82,3 +82,10 @@ export const deleteFirefoxSite = (id) => api.delete(`/firefox-sites/${id}`)
 export const getCurrencies = () => api.get('/users/currencies')
 export const getExchangeRates = () => api.get('/users/exchange-rates')
 export const updateCurrency = (data) => api.put('/users/me/currency', data)
+
+// Push notifications
+export const getVapidPublicKey = () => api.get('/push/vapid-public-key')
+export const subscribePush = (data) => api.post('/push/subscribe', data)
+export const unsubscribePush = (data) => api.post('/push/unsubscribe', data)
+export const unsubscribeAllPush = () => api.delete('/push/unsubscribe-all')
+export const generateVapidKeys = () => api.post('/settings/generate-vapid-keys')

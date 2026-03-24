@@ -1,10 +1,19 @@
-import { useState } from 'react'
-import { Box, Button, FormControl, FormLabel, FormHelperText, Input, VStack, Heading, Text, Select, Alert, AlertIcon, Divider, HStack, Badge, Tabs, TabList, Tab, TabPanels, TabPanel } from '@chakra-ui/react'
+import { useState, useEffect } from 'react'
+import { Box, Button, FormControl, FormLabel, FormHelperText, Input, VStack, Heading, Text, Select, Alert, AlertIcon, Divider, HStack, Badge, Tabs, TabList, Tab, TabPanels, TabPanel, Switch } from '@chakra-ui/react'
 import { useAuth } from '../context/AuthContext'
 import { changePassword, updateProfile, getCurrencies, updateCurrency } from '../api'
 import { useQuery } from '@tanstack/react-query'
 import { useColorMode } from '@chakra-ui/react'
 import { updateColorMode } from '../api'
+
+import { getVapidPublicKey, subscribePush, unsubscribePush, unsubscribeAllPush } from '../api'
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  return new Uint8Array([...rawData].map(c => c.charCodeAt(0)))
+}
 
 export default function Profile() {
   const { user, setUser } = useAuth()
@@ -23,6 +32,53 @@ export default function Profile() {
   const [currencyLoading, setCurrencyLoading] = useState(false)
   const [selectedCurrency, setSelectedCurrency] = useState(user.default_currency || 'GBP')
 
+  const [pushSupported, setPushSupported] = useState('serviceWorker' in navigator && 'PushManager' in window)
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
+  const [pushMsg, setPushMsg] = useState(null)
+
+  useEffect(() => {
+    if (!pushSupported) return
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(reg => {
+        console.log('Service worker registered:', reg)
+        reg.pushManager.getSubscription().then(sub => {
+          setPushEnabled(!!sub)
+        })
+      })
+      .catch(err => console.error('Service worker registration failed:', err))
+  }, [pushSupported])
+
+  const handlePushToggle = async () => {
+    console.log('Push toggle clicked')
+    setPushLoading(true)
+    setPushMsg(null)
+    try {
+      console.log('Getting service worker registration...')
+      const reg = await navigator.serviceWorker.ready
+      console.log('Service worker ready:', reg)
+      if (pushEnabled) {
+        const sub = await reg.pushManager.getSubscription()
+        console.log('Current subscription:', sub)
+      } else {
+        console.log('Fetching VAPID public key...')
+        const { data } = await getVapidPublicKey()
+        console.log('VAPID key:', data)
+        console.log('Subscribing to push...')
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(data.public_key)
+        })
+        console.log('Push subscription:', sub)
+      }
+    } catch (err) {
+      console.error('Push error:', err)
+      console.error('Error name:', err.name)
+      console.error('Error message:', err.message)
+    } finally {
+      setPushLoading(false)
+    }
+  }
   const handleColorModeToggle = async () => {
     setColorModeLoading(true)
     const newMode = colorMode === 'light' ? 'dark' : 'light'
@@ -119,6 +175,7 @@ export default function Profile() {
           <TabList borderBottomColor="gray.100">
             <Tab fontSize="sm">Currency</Tab>
             <Tab fontSize="sm">Appearance</Tab>
+            <Tab fontSize="sm">Notifications</Tab>
             <Tab fontSize="sm">Email</Tab>
             <Tab fontSize="sm">Password</Tab>
           </TabList>
@@ -152,6 +209,8 @@ export default function Profile() {
                 Save currency
               </Button>
             </TabPanel>
+
+            {/* Appearance tab */}
             <TabPanel>
               <Text fontSize="sm" color="gray.500" mb={6}>
                 Choose your preferred colour scheme. This setting is saved to your account and applies across all devices.
@@ -176,6 +235,41 @@ export default function Profile() {
                   🌙 Dark
                 </Button>
               </HStack>
+            </TabPanel>
+            {/* Notifications tab */}
+            <TabPanel>
+              {!pushSupported ? (
+                <Alert status="warning" borderRadius="md">
+                  <AlertIcon />
+                  Your browser does not support push notifications.
+                </Alert>
+              ) : (
+                <>
+                  <Text fontSize="sm" color="gray.500" mb={4}>
+                    Receive price alert notifications directly in your browser, even when the app is not open. You will need to grant notification permission when enabling.
+                  </Text>
+                  {pushMsg && (
+                    <Alert status={pushMsg.type} borderRadius="md" mb={4}>
+                      <AlertIcon />{pushMsg.text}
+                    </Alert>
+                  )}
+                  <HStack spacing={4} align="center">
+                    <Switch
+                      isChecked={pushEnabled}
+                      onChange={handlePushToggle}
+                      isDisabled={pushLoading}
+                      colorScheme="brand"
+                      size="lg"
+                    />
+                    <Text fontSize="sm">{pushEnabled ? 'Push notifications enabled' : 'Push notifications disabled'}</Text>
+                  </HStack>
+                  {pushEnabled && (
+                    <Text fontSize="xs" color="gray.400" mt={3}>
+                      You will receive a notification whenever a price alert is triggered for any of your tracked products.
+                    </Text>
+                  )}
+                </>
+              )}
             </TabPanel>
             {/* Email tab */}
             <TabPanel>

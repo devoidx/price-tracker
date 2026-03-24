@@ -17,3 +17,5 @@ mypy
 sqlalchemy[mypy]
 types-requests
 requests
+pywebpush
+

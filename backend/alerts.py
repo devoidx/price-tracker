@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 import models
 from notifications import get_provider, format_alert_email
+from push_notifications import send_push_to_user
 
 logger = logging.getLogger(__name__)
 
@@ -63,3 +64,26 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
                 alert.last_triggered_at = datetime.utcnow()
                 db.commit()
                 logger.info(f"Alert {alert.id} triggered for {user.email} — {product.name}")
+                
+        if triggered and subject and body:
+            success = provider.send(subject, body, user.email)
+            if success:
+                alert.last_triggered_at = datetime.utcnow()
+                db.commit()
+                logger.info(f"Alert {alert.id} triggered for {user.email} — {product.name}")
+
+            # Also send push notification
+            push_body = f"Current price: £{current_price:.2f}"
+            if alert.alert_type == 'all_time_low':
+                push_title = f"🎉 New all-time low: {product.name}"
+            elif alert.alert_type == 'price_drop':
+                push_title = f"🔔 Price drop: {product.name}"
+            else:
+                push_title = f"📉 Price decreased: {product.name}"
+
+            source_url = str(product.sources[0].url) if product.sources else ""
+            send_push_to_user(user.id, push_title, push_body, source_url, db)
+
+            if not alert.last_triggered_at:
+                 alert.last_triggered_at = datetime.utcnow()
+                 db.commit()
