@@ -49,6 +49,7 @@ export const triggerSourceScrape = (sourceId) => api.post(`/prices/source/${sour
 // Prices
 export const getPriceHistory = (productId) => api.get(`/prices/${productId}`)
 export const triggerScrape = (productId) => api.post(`/prices/${productId}/scrape`)
+export const deletePriceEntry = (entryId) => api.delete(`/prices/history/${entryId}`)
 
 // Alerts
 export const getAlerts = (productId) => api.get(`/alerts/${productId}`)

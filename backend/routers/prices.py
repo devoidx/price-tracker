@@ -131,3 +131,16 @@ def debug_source(source_id: int, db: Session = Depends(get_db), current_user: mo
         "price_elements_found": len(results),
         "matches": results
     }
+
+@router.delete("/history/{entry_id}")
+def delete_price_entry(entry_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    entry = db.query(models.PriceHistory).filter(models.PriceHistory.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    db.delete(entry)
+    db.commit()
+    return {"message": "Entry deleted"}
+
+

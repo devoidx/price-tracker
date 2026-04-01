@@ -1,18 +1,88 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Heading, Text, HStack, Stat, StatLabel, StatNumber, StatHelpText, Grid, Alert, AlertIcon, Icon, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, FormControl, FormLabel, Table, Thead, Tbody, Tr, Th, Td, Tabs, TabList, Tab, TabPanels, TabPanel, Badge } from '@chakra-ui/react'
+import { Box, Button, Heading, Text, HStack, Stat, StatLabel, StatNumber, StatHelpText, Grid, Alert, AlertIcon, Icon, Modal, ModalOverlay, ModalContent, 
+  ModalHeader, ModalBody, ModalFooter, Input, FormControl, FormLabel, Table, Thead, Tbody, Tr, Th, Td, Tabs, TabList, Tab, TabPanels, TabPanel, 
+  Badge, IconButton } from '@chakra-ui/react'
 import { getProducts, getPriceHistory, triggerScrape, deleteProduct, updateProduct } from '../api'
 import PriceChart from '../components/PriceChart'
 import AlertsPanel from '../components/AlertsPanel'
 import SourcesPanel from '../components/SourcesPanel'
 import { useAuth } from '../context/AuthContext'
+import { deletePriceEntry } from '../api'
 import { Trash2, ArrowLeft, AlertCircle, Pencil, RefreshCw } from 'lucide-react'
 
 const CURRENCY_SYMBOLS = {
   GBP: '£', USD: '$', EUR: '€', JPY: '¥',
   CAD: 'CA$', AUD: 'A$', CHF: 'Fr',
   SEK: 'kr', NOK: 'kr', DKK: 'kr'
+}
+
+const CURRENCY_SYMBOLS_HIST = {
+  GBP: '£', USD: '$', EUR: '€', JPY: '¥',
+  CAD: 'CA$', AUD: 'A$', CHF: 'Fr',
+  SEK: 'kr', NOK: 'kr', DKK: 'kr'
+}
+
+function HistoryTable({ history, sources, onDelete }) {
+  const [page, setPage] = useState(1)
+  const perPage = 20
+  const sorted = [...history].sort((a, b) => new Date(b.scraped_at) - new Date(a.scraped_at))
+  const total = sorted.length
+  const pages = Math.ceil(total / perPage)
+  const slice = sorted.slice((page - 1) * perPage, page * perPage)
+
+  const getLabel = (sourceId) => {
+    const source = sources.find(s => s.id === sourceId)
+    return source ? source.label : `Source ${sourceId}`
+  }
+
+  return (
+    <Box>
+      <HStack justify="space-between" mb={4}>
+        <Text fontSize="sm" color="gray.500">{total} entries</Text>
+        <HStack>
+          <Button size="xs" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} isDisabled={page === 1}>←</Button>
+          <Text fontSize="xs">{page} / {pages}</Text>
+          <Button size="xs" variant="outline" onClick={() => setPage(p => Math.min(pages, p + 1))} isDisabled={page === pages}>→</Button>
+        </HStack>
+      </HStack>
+      <Table size="sm">
+        <Thead>
+          <Tr><Th>Time</Th><Th>Source</Th><Th>Price</Th><Th>Error</Th><Th></Th></Tr>
+        </Thead>
+        <Tbody>
+          {slice.map(e => {
+            const sym = CURRENCY_SYMBOLS_HIST[e.currency] || e.currency
+            return (
+              <Tr key={e.id}>
+                <Td fontSize="xs" color="gray.400" whiteSpace="nowrap">{new Date(e.scraped_at).toLocaleString('en-GB')}</Td>
+                <Td fontSize="xs" fontWeight={500}>{getLabel(e.source_id)}</Td>
+                <Td fontSize="sm" color={e.price ? 'brand.600' : 'gray.400'} fontWeight={e.price ? 600 : 400}>
+                  {e.price ? `${sym}${Number(e.price).toFixed(2)}` : '—'}
+                </Td>
+                <Td fontSize="xs" color="red.400">{e.error || '—'}</Td>
+                <Td>
+                  <IconButton
+                    size="xs"
+                    variant="ghost"
+                    colorScheme="red"
+                    icon={<Trash2 size={11} />}
+                    onClick={() => {
+                      if (confirm(`Delete this entry (${e.price ? `${sym}${Number(e.price).toFixed(2)}` : 'error'} on ${new Date(e.scraped_at).toLocaleDateString('en-GB')})?`)) {
+                        onDelete(e.id)
+                      }
+                    }}
+                    aria-label="Delete entry"
+                  />
+                </Td>
+              </Tr>
+            )
+          })}
+        </Tbody>
+      </Table>
+    </Box>
+  )
 }
 
 const formatPrice = (price, currency, convertedPrice, userCurrency) => {
@@ -86,10 +156,10 @@ export default function ProductDetail() {
   const latestPrices = Object.values(bySource)
   const lowestCurrent = latestPrices.length > 0
     ? latestPrices.reduce((a, b) => {
-        const aPrice = parseFloat(a.converted_price || a.price)
-        const bPrice = parseFloat(b.converted_price || b.price)
-        return aPrice < bPrice ? a : b
-      })
+      const aPrice = parseFloat(a.converted_price || a.price)
+      const bPrice = parseFloat(b.converted_price || b.price)
+      return aPrice < bPrice ? a : b
+    })
     : null
 
   const lowestEntry = validHistory.length > 1
@@ -139,10 +209,10 @@ export default function ProductDetail() {
             <StatNumber fontSize="2xl" color="brand.500">
               {lowestCurrent
                 ? formatPrice(
-                    lowestCurrent.converted_price || lowestCurrent.price,
-                    lowestCurrent.converted_price ? userCurrency : lowestCurrent.currency,
-                    null, userCurrency
-                  )
+                  lowestCurrent.converted_price || lowestCurrent.price,
+                  lowestCurrent.converted_price ? userCurrency : lowestCurrent.currency,
+                  null, userCurrency
+                )
                 : '—'}
             </StatNumber>
             {lowestCurrent?.converted_price && (
@@ -157,7 +227,7 @@ export default function ProductDetail() {
               <StatNumber fontSize="2xl" color="green.500">
                 {formatPrice(lowestEntry.price, lowestEntry.currency, lowestEntry.converted_price, userCurrency)}
               </StatNumber>
-              <StatHelpText fontSize="xs">{new Date(lowestEntry.scraped_at).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}</StatHelpText>
+              <StatHelpText fontSize="xs">{new Date(lowestEntry.scraped_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</StatHelpText>
             </Stat>
           )}
           {highestEntry && (
@@ -166,7 +236,7 @@ export default function ProductDetail() {
               <StatNumber fontSize="2xl" color="red.400">
                 {formatPrice(highestEntry.price, highestEntry.currency, highestEntry.converted_price, userCurrency)}
               </StatNumber>
-              <StatHelpText fontSize="xs">{new Date(highestEntry.scraped_at).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}</StatHelpText>
+              <StatHelpText fontSize="xs">{new Date(highestEntry.scraped_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</StatHelpText>
             </Stat>
           )}
           <Stat>
@@ -183,6 +253,7 @@ export default function ProductDetail() {
             <Tab fontSize="sm">Overview</Tab>
             <Tab fontSize="sm">Sources</Tab>
             <Tab fontSize="sm">Alerts</Tab>
+            {user?.is_admin && <Tab fontSize="sm">History</Tab>}
             <Tab fontSize="sm">
               Errors
               {errors.length > 0 && (
@@ -207,6 +278,19 @@ export default function ProductDetail() {
             <TabPanel p={0}>
               <AlertsPanel productId={parseInt(id)} />
             </TabPanel>
+
+            {user?.is_admin && (
+              <TabPanel>
+                <HistoryTable
+                  history={history}
+                  sources={sources}
+                  onDelete={async (id) => {
+                    await deletePriceEntry(id)
+                    refetchHistory()
+                  }}
+                />
+              </TabPanel>
+            )}
 
             {/* Errors */}
             <TabPanel>
