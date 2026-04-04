@@ -64,15 +64,8 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
                 alert.last_triggered_at = datetime.utcnow()
                 db.commit()
                 logger.info(f"Alert {alert.id} triggered for {user.email} — {product.name}")
-                
-        if triggered and subject and body:
-            success = provider.send(subject, body, user.email)
-            if success:
-                alert.last_triggered_at = datetime.utcnow()
-                db.commit()
-                logger.info(f"Alert {alert.id} triggered for {user.email} — {product.name}")
 
-            # Also send push notification
+            # Send push notification
             push_body = f"Current price: £{current_price:.2f}"
             if alert.alert_type == 'all_time_low':
                 push_title = f"🎉 New all-time low: {product.name}"
@@ -85,5 +78,5 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
             send_push_to_user(user.id, push_title, push_body, source_url, db)
 
             if not alert.last_triggered_at:
-                 alert.last_triggered_at = datetime.utcnow()
-                 db.commit()
+                alert.last_triggered_at = datetime.utcnow()
+                db.commit()
