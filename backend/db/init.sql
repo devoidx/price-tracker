@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS alerts (
     alert_type VARCHAR(20) NOT NULL CHECK (alert_type IN ('price_drop', 'all_time_low', 'price_decreased')),
     threshold NUMERIC(10, 2),
     enabled BOOLEAN DEFAULT TRUE,
+    in_app_messages BOOLEAN DEFAULT FALSE,
     last_triggered_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW()
 );
@@ -117,6 +118,21 @@ INSERT INTO known_selectors (domain, selector, label) VALUES
     ('gadgetverse.co.uk', '.hM4gpp span', 'Main price'),
     ('cclonline.com', '.fw-bold.h4', 'Main price')
 ON CONFLICT (domain, selector) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY,
+    sender_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    recipient_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subject VARCHAR(255),
+    body TEXT NOT NULL,
+    message_type VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (message_type IN ('user', 'system')),
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_by_recipient BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_messages_recipient_read ON messages(recipient_id, is_read);
 
 CREATE TABLE IF NOT EXISTS exchange_rates (
     id SERIAL PRIMARY KEY,

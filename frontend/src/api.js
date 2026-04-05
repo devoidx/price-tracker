@@ -56,6 +56,7 @@ export const getAlerts = (productId) => api.get(`/alerts/${productId}`)
 export const createAlert = (productId, data) => api.post(`/alerts/${productId}`, data)
 export const deleteAlert = (alertId) => api.delete(`/alerts/${alertId}`)
 export const toggleAlert = (alertId) => api.patch(`/alerts/${alertId}/toggle`)
+export const toggleAlertInAppMessages = (alertId) => api.patch(`/alerts/${alertId}/toggle-in-app-messages`)
 
 // Admin
 export const getAdminUsers = () => api.get('/admin/users')
@@ -90,3 +91,13 @@ export const subscribePush = (data) => api.post('/push/subscribe', data)
 export const unsubscribePush = (data) => api.post('/push/unsubscribe', data)
 export const unsubscribeAllPush = () => api.delete('/push/unsubscribe-all')
 export const generateVapidKeys = () => api.post('/settings/generate-vapid-keys')
+
+// Messages
+export const getMessages = () => api.get('/messages')
+export const getUnreadCount = () => api.get('/messages/unread-count')
+export const sendMessage = (data) => api.post('/messages', data)
+export const markMessageRead = (id) => api.patch(`/messages/${id}/read`)
+export const markAllRead = () => api.patch('/messages/read-all')
+export const deleteMessage = (id) => api.delete(`/messages/${id}`)
+export const getMessageUsers = () => api.get('/messages/users')
+export const sendSystemMessage = (data) => api.post('/messages/system', data)

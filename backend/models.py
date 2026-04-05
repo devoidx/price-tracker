@@ -60,6 +60,7 @@ class Alert(Base):
     alert_type = Column(String(20), nullable=False)
     threshold = Column(Numeric(10, 2))
     enabled = Column(Boolean, default=True)
+    in_app_messages = Column(Boolean, default=False)
     last_triggered_at = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
     product = relationship("Product", back_populates="alerts")
@@ -103,3 +104,17 @@ class PushSubscription(Base):
     auth = Column(Text, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     user = relationship("User")
+
+class Message(Base):
+    __tablename__ = "messages"
+    id = Column(Integer, primary_key=True)
+    sender_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    subject = Column(String(255))
+    body = Column(Text, nullable=False)
+    message_type = Column(String(20), nullable=False, default="user")
+    is_read = Column(Boolean, default=False, nullable=False)
+    deleted_by_recipient = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    sender = relationship("User", foreign_keys=[sender_id])
+    recipient = relationship("User", foreign_keys=[recipient_id])

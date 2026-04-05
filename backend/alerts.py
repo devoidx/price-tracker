@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 import models
 from notifications import get_provider, format_alert_email
 from push_notifications import send_push_to_user
+from routers.messages import create_system_message
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,9 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
 
             source_url = str(product.sources[0].url) if product.sources else ""
             send_push_to_user(user.id, push_title, push_body, source_url, db)
+
+            if alert.in_app_messages:
+                create_system_message(user.id, push_title, push_body, db)
 
             if not alert.last_triggered_at:
                 alert.last_triggered_at = datetime.utcnow()

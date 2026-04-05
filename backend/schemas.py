@@ -83,6 +83,7 @@ class PriceHistoryOut(BaseModel):
 class AlertCreate(BaseModel):
     alert_type: str
     threshold: Optional[Decimal] = None
+    in_app_messages: bool = False
 
 class AlertOut(BaseModel):
     id: int
@@ -90,6 +91,7 @@ class AlertOut(BaseModel):
     alert_type: str
     threshold: Optional[Decimal]
     enabled: bool
+    in_app_messages: bool
     last_triggered_at: Optional[datetime]
     created_at: datetime
     class Config:
@@ -136,4 +138,31 @@ class ExchangeRateOut(BaseModel):
     rate: Decimal
     fetched_at: datetime
     class Config:
-        from_attributes = True  
+        from_attributes = True
+
+class UserSummaryOut(BaseModel):
+    id: int
+    username: str
+    class Config:
+        from_attributes = True
+
+class MessageCreate(BaseModel):
+    recipient_id: int
+    subject: Optional[str] = None
+    body: str
+
+class SystemMessageCreate(BaseModel):
+    recipient_id: Optional[int] = None
+    subject: Optional[str] = None
+    body: str
+
+class MessageOut(BaseModel):
+    id: int
+    sender_id: Optional[int]
+    sender_username: Optional[str]
+    recipient_id: int
+    subject: Optional[str]
+    body: str
+    message_type: str
+    is_read: bool
+    created_at: datetime

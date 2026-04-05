@@ -1,11 +1,21 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Box, Flex, Button, Text, HStack } from '@chakra-ui/react'
+import { Box, Flex, Button, Text, HStack, Badge } from '@chakra-ui/react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, LayoutDashboard, Shield, User, Settings } from 'lucide-react'
+import { LogOut, LayoutDashboard, Shield, User, Settings, MessageSquare } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { getUnreadCount } from '../api'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['unreadCount'],
+    queryFn: () => getUnreadCount().then(r => r.data),
+    refetchInterval: 60000,
+    enabled: !!user,
+  })
+  const unreadCount = unreadData?.count ?? 0
 
   const handleLogout = () => {
     logout()
@@ -32,6 +42,14 @@ export default function Navbar() {
           Settings
         </Button>
       )}
+        <Button as={Link} to="/messages" variant="ghost" color="white" _hover={{ bg: 'brand.700' }} size="sm" leftIcon={<MessageSquare size={14} />}>
+          Messages
+          {unreadCount > 0 && (
+            <Badge colorScheme="red" ml={2} borderRadius="full" fontSize="xs">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </Badge>
+          )}
+        </Button>
         <Button as={Link} to="/profile" variant="ghost" color="white" _hover={{ bg: 'brand.700' }} size="sm" leftIcon={<User size={14} />}>
           Profile
         </Button>

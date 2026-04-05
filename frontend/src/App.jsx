@@ -9,6 +9,7 @@ import ProductDetail from './pages/ProductDetail'
 import Admin from './pages/Admin'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
+import Messages from './pages/Messages'
 import { Component } from 'react'
 
 class ErrorBoundary extends Component {
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/admin" element={<ProtectedRoute adminOnly><ErrorBoundary name="Admin"><Admin /></ErrorBoundary></ProtectedRoute>} />
 	<Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 	<Route path="/settings" element={<SuperAdminRoute><Settings /></SuperAdminRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><ErrorBoundary name="Messages"><Messages /></ErrorBoundary></ProtectedRoute>} />
       </Routes>
     </>
   )

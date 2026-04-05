@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Box, Heading, Button, Badge, Table, Thead, Tbody, Tr, Th, Td, HStack, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, FormControl, FormLabel, Input, Switch, VStack, Alert, AlertIcon, Text, Icon, IconButton, Tabs, TabList, Tab, TabPanels, TabPanel } from '@chakra-ui/react'
-import { getAdminUsers, getAdminProducts, getAdminProductHistory, deactivateUser, adminUpdateUser, getSelectors, createSelector, updateSelector, deleteSelector, getFirefoxSites, addFirefoxSite, deleteFirefoxSite } from '../api'
+import { Box, Heading, Button, Badge, Table, Thead, Tbody, Tr, Th, Td, HStack, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, FormControl, FormLabel, Input, Switch, VStack, Alert, AlertIcon, Text, Icon, IconButton, Tabs, TabList, Tab, TabPanels, TabPanel, Select, Textarea } from '@chakra-ui/react'
+import { getAdminUsers, getAdminProducts, getAdminProductHistory, deactivateUser, adminUpdateUser, getSelectors, createSelector, updateSelector, deleteSelector, getFirefoxSites, addFirefoxSite, deleteFirefoxSite, getMessageUsers, sendSystemMessage } from '../api'
 import { UserX, Pencil, ChevronDown, ChevronUp, AlertCircle, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -21,6 +21,9 @@ export default function Admin() {
   const [editError, setEditError] = useState('')
   const [editLoading, setEditLoading] = useState(false)
   const [expandedProduct, setExpandedProduct] = useState(null)
+  const [broadcastForm, setBroadcastForm] = useState({ recipient_id: '', subject: '', body: '' })
+  const [broadcastLoading, setBroadcastLoading] = useState(false)
+  const [broadcastMsg, setBroadcastMsg] = useState(null)
 
   const { data: users = [] } = useQuery({ queryKey: ['adminUsers'], queryFn: () => getAdminUsers().then(r => r.data) })
   const { data: products = [] } = useQuery({ queryKey: ['adminProducts'], queryFn: () => getAdminProducts().then(r => r.data) })
@@ -30,6 +33,7 @@ export default function Admin() {
     enabled: !!expandedProduct
   })
   const { data: selectors = [] } = useQuery({ queryKey: ['selectors'], queryFn: () => getSelectors().then(r => r.data) })
+  const { data: messageUsers = [] } = useQuery({ queryKey: ['messageUsers'], queryFn: () => getMessageUsers().then(r => r.data) })
   const { data: firefoxSites = [] } = useQuery({ queryKey: ['firefoxSites'], queryFn: () => getFirefoxSites().then(r => r.data) })
 
   const expandedErrors = expandedHistory.filter(h => h.error)
@@ -118,6 +122,26 @@ export default function Admin() {
     queryClient.invalidateQueries(['firefoxSites'])
   }
 
+  const handleBroadcast = async (e) => {
+    e.preventDefault()
+    if (!broadcastForm.body.trim()) return
+    setBroadcastLoading(true)
+    setBroadcastMsg(null)
+    try {
+      const res = await sendSystemMessage({
+        recipient_id: broadcastForm.recipient_id ? parseInt(broadcastForm.recipient_id) : null,
+        subject: broadcastForm.subject.trim() || undefined,
+        body: broadcastForm.body.trim(),
+      })
+      setBroadcastMsg({ type: 'success', text: `Sent to ${res.data.sent} user${res.data.sent !== 1 ? 's' : ''}` })
+      setBroadcastForm({ recipient_id: '', subject: '', body: '' })
+    } catch (err) {
+      setBroadcastMsg({ type: 'error', text: err.response?.data?.detail || 'Failed to send' })
+    } finally {
+      setBroadcastLoading(false)
+    }
+  }
+
   return (
     <Box maxW="1100px" mx="auto" px={6} py={8}>
       <Heading size="lg" mb={8}>Admin panel</Heading>
@@ -129,6 +153,7 @@ export default function Admin() {
             <Tab fontSize="sm">Products ({products.length})</Tab>
             <Tab fontSize="sm">Known selectors ({selectors.length})</Tab>
             <Tab fontSize="sm">Firefox sites ({firefoxSites.length})</Tab>
+            <Tab fontSize="sm">Broadcast</Tab>
           </TabList>
 
           <TabPanels>
@@ -297,6 +322,54 @@ export default function Admin() {
                   <Button size="sm" colorScheme="brand" leftIcon={<Plus size={13} />} isLoading={firefoxLoading} onClick={handleAddFirefoxSite}>Add</Button>
                 </HStack>
               )}
+            </TabPanel>
+
+            {/* Broadcast tab */}
+            <TabPanel>
+              <Text fontSize="sm" color="gray.500" mb={4}>
+                Send a system message to one user or all users at once.
+              </Text>
+              {broadcastMsg && (
+                <Alert status={broadcastMsg.type} borderRadius="md" mb={4}><AlertIcon />{broadcastMsg.text}</Alert>
+              )}
+              <form onSubmit={handleBroadcast}>
+                <VStack spacing={4} align="stretch" maxW="500px">
+                  <FormControl>
+                    <FormLabel fontSize="sm">Recipient</FormLabel>
+                    <Select
+                      value={broadcastForm.recipient_id}
+                      onChange={e => setBroadcastForm({ ...broadcastForm, recipient_id: e.target.value })}
+                      focusBorderColor="brand.500"
+                    >
+                      <option value="">All users</option>
+                      {messageUsers.map(u => (
+                        <option key={u.id} value={u.id}>{u.username}</option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize="sm">Subject</FormLabel>
+                    <Input
+                      value={broadcastForm.subject}
+                      onChange={e => setBroadcastForm({ ...broadcastForm, subject: e.target.value })}
+                      placeholder="Optional"
+                      focusBorderColor="brand.500"
+                    />
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel fontSize="sm">Message</FormLabel>
+                    <Textarea
+                      value={broadcastForm.body}
+                      onChange={e => setBroadcastForm({ ...broadcastForm, body: e.target.value })}
+                      rows={4}
+                      focusBorderColor="brand.500"
+                    />
+                  </FormControl>
+                  <Button type="submit" colorScheme="brand" alignSelf="flex-start" isLoading={broadcastLoading}>
+                    Send message
+                  </Button>
+                </VStack>
+              </form>
             </TabPanel>
 
           </TabPanels>

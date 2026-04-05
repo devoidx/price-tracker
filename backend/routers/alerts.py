@@ -58,3 +58,13 @@ def toggle_alert(alert_id: int, db: Session = Depends(get_db), current_user: mod
     db.commit()
     db.refresh(alert)
     return alert
+
+@router.patch("/{alert_id}/toggle-in-app-messages", response_model=schemas.AlertOut)
+def toggle_in_app_messages(alert_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    alert = db.query(models.Alert).filter(models.Alert.id == alert_id, models.Alert.user_id == current_user.id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    alert.in_app_messages = not alert.in_app_messages
+    db.commit()
+    db.refresh(alert)
+    return alert

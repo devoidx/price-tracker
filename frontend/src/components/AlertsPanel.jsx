@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Box, Button, Heading, HStack, Text, Badge, Select, Input, FormControl, FormLabel, FormHelperText, VStack, Switch, Icon } from '@chakra-ui/react'
-import { getAlerts, createAlert, deleteAlert, toggleAlert } from '../api'
+import { getAlerts, createAlert, deleteAlert, toggleAlert, toggleAlertInAppMessages } from '../api'
 import { Bell, Trash2, Plus } from 'lucide-react'
 
 export default function AlertsPanel({ productId }) {
   const queryClient = useQueryClient()
-  const [form, setForm] = useState({ alert_type: 'price_drop', threshold: '' })
+  const [form, setForm] = useState({ alert_type: 'price_drop', threshold: '', in_app_messages: false })
   const [adding, setAdding] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -21,10 +21,11 @@ export default function AlertsPanel({ productId }) {
     try {
       await createAlert(productId, {
         alert_type: form.alert_type,
-        threshold: form.alert_type === 'price_drop' ? parseFloat(form.threshold) : null
+        threshold: form.alert_type === 'price_drop' ? parseFloat(form.threshold) : null,
+        in_app_messages: form.in_app_messages,
       })
       queryClient.invalidateQueries(['alerts', productId])
-      setForm({ alert_type: 'price_drop', threshold: '' })
+      setForm({ alert_type: 'price_drop', threshold: '', in_app_messages: false })
       setAdding(false)
     } catch (err) {
       console.error(err)
@@ -40,6 +41,11 @@ export default function AlertsPanel({ productId }) {
 
   const handleToggle = async (alertId) => {
     await toggleAlert(alertId)
+    queryClient.invalidateQueries(['alerts', productId])
+  }
+
+  const handleToggleInAppMessages = async (alertId) => {
+    await toggleAlertInAppMessages(alertId)
     queryClient.invalidateQueries(['alerts', productId])
   }
 
@@ -89,6 +95,15 @@ export default function AlertsPanel({ productId }) {
                   You'll be notified whenever this product hits a new all-time low price.
                 </Text>
               )}
+              <FormControl display="flex" alignItems="center" justifyContent="space-between">
+                <FormLabel fontSize="sm" mb={0}>Send in-app message</FormLabel>
+                <Switch
+                  isChecked={form.in_app_messages}
+                  onChange={e => setForm({ ...form, in_app_messages: e.target.checked })}
+                  colorScheme="brand"
+                  size="sm"
+                />
+              </FormControl>
               <HStack justify="flex-end">
                 <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
                 <Button size="sm" colorScheme="brand" type="submit" isLoading={loading}>Save alert</Button>
@@ -127,6 +142,14 @@ export default function AlertsPanel({ productId }) {
                 </Box>
               </HStack>
               <HStack>
+                <Switch
+                  isChecked={alert.in_app_messages}
+                  onChange={() => handleToggleInAppMessages(alert.id)}
+                  colorScheme="brand"
+                  size="sm"
+                  title="Send in-app message when triggered"
+                />
+                <Text fontSize="xs" color="gray.400">msg</Text>
                 <Badge colorScheme={alert.enabled ? 'green' : 'gray'} fontSize="xs">
                   {alert.enabled ? 'Active' : 'Paused'}
                 </Badge>
