@@ -8,63 +8,94 @@ import models
 
 logger = logging.getLogger(__name__)
 
+
 def get_firefox_sites(db: Session) -> list:
     sites = db.query(models.FirefoxSite).all()
     return [s.domain for s in sites]
 
+
 def clean_price(text: str) -> Decimal:
     text = text.strip()
     # Extract first price-like pattern — with or without decimal places
-    match = re.search(r'[\d]+[.,][\d]{2}', text)
+    match = re.search(r"[\d]+[.,][\d]{2}", text)
     if match:
         text = match.group(0)
     else:
         # Try whole number price like £37
-        match = re.search(r'[\d]+', text)
+        match = re.search(r"[\d]+", text)
         if match:
-            text = match.group(0) + '.00'
+            text = match.group(0) + ".00"
         else:
-            text = re.sub(r'[^\d.,]', '', text)
-    if ',' in text and '.' in text:
-        if text.index(',') < text.index('.'):
-            text = text.replace(',', '')
+            text = re.sub(r"[^\d.,]", "", text)
+    if "," in text and "." in text:
+        if text.index(",") < text.index("."):
+            text = text.replace(",", "")
         else:
-            text = text.replace('.', '').replace(',', '.')
-    elif ',' in text:
-        text = text.replace(',', '.')
+            text = text.replace(".", "").replace(",", ".")
+    elif "," in text:
+        text = text.replace(",", ".")
     return Decimal(text)
 
-def scrape_price(url: str, selector: str = None, firefox_sites: list = None) -> dict:
+
+def scrape_price(
+    url: str, selector: str = None, firefox_sites: list = None, retries: int = 2
+) -> dict:
+    if firefox_sites is None:
+        firefox_sites = []
+
+    last_result: dict = {"price": None, "error": "Scraper returned no result"}
+    for attempt in range(1, retries + 1):
+        result = _scrape_price_once(url, selector, firefox_sites)
+        if result["price"] is not None:
+            return result
+        last_result = result
+        if attempt < retries:
+            import time
+
+            logger.warning(
+                f"Scrape attempt {attempt} failed for {url} — retrying in 30s: {result['error']}"
+            )
+            time.sleep(30)
+
+    logger.error(
+        f"All {retries} scrape attempts failed for {url}: {last_result['error']}"
+    )
+    return last_result
+
+
+def _scrape_price_once(
+    url: str, selector: str = None, firefox_sites: list = None
+) -> dict:
     # Use Firefox for sites known to block Chromium
     if firefox_sites is None:
-        firefox_sites = [] 
+        firefox_sites = []
     use_firefox = any(site in url for site in firefox_sites)
     logger.info(f"Using {'Firefox' if use_firefox else 'Chromium'} for {url}")
 
     with sync_playwright() as p:
         browser = (p.firefox if use_firefox else p.chromium).launch(headless=True)
         context = browser.new_context(
-          user_agent=(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
-            if use_firefox else
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-          ),
-          viewport={"width": 1920, "height": 1080},
-          locale="en-GB",
-          timezone_id="Europe/London",
-          extra_http_headers={
-              "Accept-Language": "en-GB,en;q=0.9",
-              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-              "Accept-Encoding": "gzip, deflate, br",
-              "Connection": "keep-alive",
-              "Upgrade-Insecure-Requests": "1",
-              "Sec-Fetch-Dest": "document",
-              "Sec-Fetch-Mode": "navigate",
-              "Sec-Fetch-Site": "none",
-              "Sec-Fetch-User": "?1",
-              "Cache-Control": "max-age=0",
-              "Referer": "https://www.google.com/",
-          }
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
+                if use_firefox
+                else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            ),
+            viewport={"width": 1920, "height": 1080},
+            locale="en-GB",
+            timezone_id="Europe/London",
+            extra_http_headers={
+                "Accept-Language": "en-GB,en;q=0.9",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Cache-Control": "max-age=0",
+                "Referer": "https://www.google.com/",
+            },
         )
         page = context.new_page()
         if not use_firefox:
@@ -77,19 +108,38 @@ def scrape_price(url: str, selector: str = None, firefox_sites: list = None) -> 
                 window.chrome = { runtime: {} };
             """)
         if not use_firefox:
-            page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "stylesheet", "font"] else route.continue_())
+            page.route(
+                "**/*",
+                lambda route: (
+                    route.abort()
+                    if route.request.resource_type in ["image", "stylesheet", "font"]
+                    else route.continue_()
+                ),
+            )
         try:
             from typing import Literal
-            wait_strategy: Literal["networkidle", "domcontentloaded"] = "networkidle" if use_firefox else "domcontentloaded"
+
+            wait_strategy: Literal["networkidle", "domcontentloaded"] = (
+                "networkidle" if use_firefox else "domcontentloaded"
+            )
             response = page.goto(url, wait_until=wait_strategy, timeout=30000)
             if response and response.status >= 400:
-               browser.close()
-               return {"price": None, "error": f"Page returned HTTP {response.status} — check the URL is valid"}
+                browser.close()
+                return {
+                    "price": None,
+                    "error": f"Page returned HTTP {response.status} — check the URL is valid",
+                }
             page.wait_for_timeout(5000)
             page_title = page.title().lower()
-            if any(x in page_title for x in ["404", "not found", "page not found", "unavailable"]):
+            if any(
+                x in page_title
+                for x in ["404", "not found", "page not found", "unavailable"]
+            ):
                 browser.close()
-                return {"price": None, "error": f"Page appears invalid (title: '{page.title()}')"}
+                return {
+                    "price": None,
+                    "error": f"Page appears invalid (title: '{page.title()}')",
+                }
         except Exception as e:
             browser.close()
             return {"price": None, "error": f"Failed to load page: {str(e)}"}
@@ -100,18 +150,30 @@ def scrape_price(url: str, selector: str = None, firefox_sites: list = None) -> 
                 element = page.wait_for_selector(selector, timeout=10000)
                 if element is None:
                     browser.close()
-                    return {"price": None, "error": f"Selector '{selector}' not found on page"}
+                    return {
+                        "price": None,
+                        "error": f"Selector '{selector}' not found on page",
+                    }
                 raw_text = element.inner_text()
             except Exception:
                 browser.close()
-                return {"price": None, "error": f"Selector '{selector}' not found on page"}
+                return {
+                    "price": None,
+                    "error": f"Selector '{selector}' not found on page",
+                }
         else:
             common_selectors = [
-                ".price", "#price", "[data-price]",
-                ".product-price", ".offer-price",
-                "#priceblock_ourprice", "#priceblock_dealprice",
-                ".a-price .a-offscreen", ".a-price .A-OFFSCREEN",
-                "span.a-offscreen", "span.A-OFFSCREEN",
+                ".price",
+                "#price",
+                "[data-price]",
+                ".product-price",
+                ".offer-price",
+                "#priceblock_ourprice",
+                "#priceblock_dealprice",
+                ".a-price .a-offscreen",
+                ".a-price .A-OFFSCREEN",
+                "span.a-offscreen",
+                "span.A-OFFSCREEN",
                 "[itemprop='price']",
             ]
             for sel in common_selectors:
@@ -143,14 +205,22 @@ def scrape_price(url: str, selector: str = None, firefox_sites: list = None) -> 
 
             if not raw_text:
                 browser.close()
-                return {"price": None, "error": "Could not find price — try providing a CSS selector"}
+                return {
+                    "price": None,
+                    "error": "Could not find price — try providing a CSS selector",
+                }
 
         browser.close()
         try:
             price = clean_price(raw_text)
             return {"price": price, "error": None}
         except (InvalidOperation, Exception) as e:
-            return {"price": None, "error": f"Could not parse price from '{raw_text}': {e}"}
+            return {
+                "price": None,
+                "error": f"Could not parse price from '{raw_text}': {e}",
+            }
+    return {"price": None, "error": "Scraper returned no result"}
+
 
 def scrape_and_save(source_id: int, db: Session):
     source = db.query(models.Source).filter(models.Source.id == source_id).first()
@@ -164,17 +234,22 @@ def scrape_and_save(source_id: int, db: Session):
         result = scrape_price(source.url, str(source.selector), firefox_sites)
     else:
         from urllib.parse import urlparse
-        domain = urlparse(str(source.url)).hostname or ''
-        domain = domain.replace('www.', '')
-        known = db.query(models.KnownSelector).filter(
-            models.KnownSelector.domain == domain,
-            models.KnownSelector.active == True
-        ).all()
+
+        domain = urlparse(str(source.url)).hostname or ""
+        domain = domain.replace("www.", "")
+        known = (
+            db.query(models.KnownSelector)
+            .filter(
+                models.KnownSelector.domain == domain,
+                models.KnownSelector.active == True,
+            )
+            .all()
+        )
         result = None
         for ks in known:
             logger.info(f"Trying known selector '{ks.selector}' for {domain}")
             r = scrape_price(str(source.url), str(ks.selector), firefox_sites)
-            if r['price'] is not None:
+            if r["price"] is not None:
                 result = r
                 logger.info(f"Known selector '{ks.selector}' succeeded for {domain}")
                 break
@@ -187,7 +262,7 @@ def scrape_and_save(source_id: int, db: Session):
         source_id=source.id,
         price=result["price"],
         error=result["error"],
-        currency=str(source.currency) if source.currency else 'GBP'
+        currency=str(source.currency) if source.currency else "GBP",
     )
     db.add(entry)
     db.commit()
@@ -196,7 +271,7 @@ def scrape_and_save(source_id: int, db: Session):
     if result["price"] is not None:
         try:
             from alerts import check_alerts
+
             check_alerts(source.product_id, result["price"], db)
         except Exception as e:
             logger.error(f"Alert check failed for source {source_id}: {e}")
-

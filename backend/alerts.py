@@ -8,6 +8,7 @@ from push_notifications import send_push_to_user
 
 logger = logging.getLogger(__name__)
 
+
 def check_alerts(product_id: int, current_price: Decimal, db: Session):
     if current_price is None:
         return
@@ -27,12 +28,15 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
     previous_low = min(previous_prices) if previous_prices else None
     previous_price = previous_prices[-1] if previous_prices else None
     is_all_time_low = previous_low is None or float(current_price) < previous_low
-    price_decreased = previous_price is not None and float(current_price) < previous_price
+    price_decreased = (
+        previous_price is not None and float(current_price) < previous_price
+    )
 
-    alerts = db.query(models.Alert).filter(
-        models.Alert.product_id == product_id,
-        models.Alert.enabled == True
-    ).all()
+    alerts = (
+        db.query(models.Alert)
+        .filter(models.Alert.product_id == product_id, models.Alert.enabled == True)
+        .all()
+    )
 
     if not alerts:
         return
@@ -47,29 +51,49 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
         triggered = False
         subject, body = None, None
 
-        if alert.alert_type == "all_time_low" and is_all_time_low and previous_low is not None:
+        if (
+            alert.alert_type == "all_time_low"
+            and is_all_time_low
+            and previous_low is not None
+        ):
             triggered = True
-            subject, body = format_alert_email(product.name, product.sources[0].url, current_price, "all_time_low", Decimal(str(previous_low)))
+            subject, body = format_alert_email(
+                product.name,
+                product.sources[0].url,
+                current_price,
+                "all_time_low",
+                Decimal(str(previous_low)),
+            )
         elif alert.alert_type == "price_drop" and alert.threshold is not None:
             if float(current_price) <= float(alert.threshold):
                 triggered = True
-                subject, body = format_alert_email(product.name, product.sources[0].url, current_price, "price_drop")
+                subject, body = format_alert_email(
+                    product.name, product.sources[0].url, current_price, "price_drop"
+                )
         elif alert.alert_type == "price_decreased" and price_decreased:
             triggered = True
-            subject, body = format_alert_email(product.name, product.sources[0].url, current_price, "price_decreased", previous_price=Decimal(str(previous_price)))
+            subject, body = format_alert_email(
+                product.name,
+                product.sources[0].url,
+                current_price,
+                "price_decreased",
+                previous_price=Decimal(str(previous_price)),
+            )
 
         if triggered and subject and body:
             success = provider.send(subject, body, user.email)
             if success:
                 alert.last_triggered_at = datetime.utcnow()
                 db.commit()
-                logger.info(f"Alert {alert.id} triggered for {user.email} — {product.name}")
+                logger.info(
+                    f"Alert {alert.id} triggered for {user.email} — {product.name}"
+                )
 
             # Send push notification
             push_body = f"Current price: £{current_price:.2f}"
-            if alert.alert_type == 'all_time_low':
+            if alert.alert_type == "all_time_low":
                 push_title = f"🎉 New all-time low: {product.name}"
-            elif alert.alert_type == 'price_drop':
+            elif alert.alert_type == "price_drop":
                 push_title = f"🔔 Price drop: {product.name}"
             else:
                 push_title = f"📉 Price decreased: {product.name}"
