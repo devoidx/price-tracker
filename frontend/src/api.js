@@ -64,6 +64,7 @@ export const getAdminProducts = () => api.get('/admin/products')
 export const deactivateUser = (id) => api.post(`/admin/users/${id}/deactivate`)
 export const adminUpdateUser = (id, data) => api.patch(`/admin/users/${id}`, data)
 export const getAdminProductHistory = (productId) => api.get(`/admin/products/${productId}/history`)
+export const getScrapeHealth = () => api.get('/admin/scrape-health')
 
 // Settings
 export const getSettings = () => api.get('/settings')
