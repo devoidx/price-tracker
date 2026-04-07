@@ -1,183 +1,294 @@
-import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Heading, HStack, Text, Badge, VStack, Input, Select, FormControl, FormLabel, FormHelperText, Switch, Alert, AlertIcon, Table, Thead, Tbody, Tr, Th, Td, IconButton, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@chakra-ui/react'
-import { Plus, Trash2, Pencil, RefreshCw } from 'lucide-react'
-import { getSources, addSource, updateSource, deleteSource, triggerSourceScrape, getNextRunTimes, getPriceHistory, getCurrencies } from '../api'
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Box,
+  Button,
+  Heading,
+  HStack,
+  Text,
+  Badge,
+  VStack,
+  Input,
+  Select,
+  FormControl,
+  FormLabel,
+  FormHelperText,
+  Switch,
+  Alert,
+  AlertIcon,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  IconButton,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@chakra-ui/react";
+import { Plus, Trash2, Pencil, RefreshCw } from "lucide-react";
+import {
+  getSources,
+  addSource,
+  updateSource,
+  deleteSource,
+  triggerSourceScrape,
+  getNextRunTimes,
+  getPriceHistory,
+  getCurrencies,
+} from "../api";
 
 const INTERVALS = [
-  { label: '15 minutes', value: 15 },
-  { label: '30 minutes', value: 30 },
-  { label: '1 hour', value: 60 },
-  { label: '2 hours', value: 120 },
-  { label: '6 hours', value: 360 },
-  { label: '12 hours', value: 720 },
-  { label: '24 hours', value: 1440 },
-]
+  { label: "15 minutes", value: 15 },
+  { label: "30 minutes", value: 30 },
+  { label: "1 hour", value: 60 },
+  { label: "2 hours", value: 120 },
+  { label: "6 hours", value: 360 },
+  { label: "12 hours", value: 720 },
+  { label: "24 hours", value: 1440 },
+];
 
 const CURRENCY_SYMBOLS = {
-  GBP: '£', USD: '$', EUR: '€', JPY: '¥',
-  CAD: 'CA$', AUD: 'A$', CHF: 'Fr',
-  SEK: 'kr', NOK: 'kr', DKK: 'kr'
+  GBP: "£",
+  USD: "$",
+  EUR: "€",
+  JPY: "¥",
+  CAD: "CA$",
+  AUD: "A$",
+  CHF: "Fr",
+  SEK: "kr",
+  NOK: "kr",
+  DKK: "kr",
+};
+
+function getSourceHealth(sourceId, history) {
+  const sourceHistory = history.filter((h) => h.source_id === sourceId);
+  if (sourceHistory.length === 0) return null;
+  const recent = [...sourceHistory]
+    .sort((a, b) => new Date(b.scraped_at) - new Date(a.scraped_at))
+    .slice(0, 10);
+  const successes = recent.filter((h) => h.price !== null).length;
+  const rate = (successes / recent.length) * 100;
+  if (rate === 100) return { color: "green", label: "Healthy" };
+  if (rate >= 80) return { color: "orange", label: "Degraded" };
+  return { color: "red", label: "Unhealthy" };
 }
 
-function SourceForm({ form, setForm, onSubmit, error, showActive, currencies }) {
+function SourceForm({
+  form,
+  setForm,
+  onSubmit,
+  error,
+  showActive,
+  currencies,
+}) {
   return (
     <form id="source-form" onSubmit={onSubmit}>
       <VStack spacing={4}>
-        {error && <Alert status="error" borderRadius="md"><AlertIcon />{error}</Alert>}
+        {error && (
+          <Alert status="error" borderRadius="md">
+            <AlertIcon />
+            {error}
+          </Alert>
+        )}
         <FormControl>
           <FormLabel fontSize="sm">Label</FormLabel>
           <Input
             value={form.label}
-            onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+            onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
             placeholder="e.g. Amazon — auto-generated from URL if blank"
             focusBorderColor="brand.500"
           />
-          <FormHelperText fontSize="xs">Leave blank to auto-generate from the URL</FormHelperText>
+          <FormHelperText fontSize="xs">
+            Leave blank to auto-generate from the URL
+          </FormHelperText>
         </FormControl>
         <FormControl isRequired>
           <FormLabel fontSize="sm">URL</FormLabel>
           <Input
             value={form.url}
-            onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
+            onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
             placeholder="https://www.amazon.co.uk/..."
             focusBorderColor="brand.500"
           />
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">CSS Selector <Text as="span" color="gray.400" fontWeight="normal">(optional)</Text></FormLabel>
+          <FormLabel fontSize="sm">
+            CSS Selector{" "}
+            <Text as="span" color="gray.400" fontWeight="normal">
+              (optional)
+            </Text>
+          </FormLabel>
           <Input
             value={form.selector}
-            onChange={e => setForm(f => ({ ...f, selector: e.target.value }))}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, selector: e.target.value }))
+            }
             placeholder=".a-price .a-offscreen"
             focusBorderColor="brand.500"
             fontFamily="mono"
           />
-          <FormHelperText fontSize="xs">Leave blank to auto-detect the price</FormHelperText>
+          <FormHelperText fontSize="xs">
+            Leave blank to auto-detect the price
+          </FormHelperText>
         </FormControl>
         <FormControl>
           <FormLabel fontSize="sm">Currency</FormLabel>
           <Select
             value={form.currency}
-            onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, currency: e.target.value }))
+            }
             focusBorderColor="brand.500"
           >
             {Object.entries(currencies).map(([code, label]) => (
-              <option key={code} value={code}>{label}</option>
+              <option key={code} value={code}>
+                {label}
+              </option>
             ))}
           </Select>
-          <FormHelperText fontSize="xs">Auto-detected from URL — change if incorrect</FormHelperText>
+          <FormHelperText fontSize="xs">
+            Auto-detected from URL — change if incorrect
+          </FormHelperText>
         </FormControl>
         <FormControl>
           <FormLabel fontSize="sm">Check interval</FormLabel>
           <Select
             value={form.interval_minutes}
-            onChange={e => setForm(f => ({ ...f, interval_minutes: e.target.value }))}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, interval_minutes: e.target.value }))
+            }
             focusBorderColor="brand.500"
           >
-            {INTERVALS.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
+            {INTERVALS.map((i) => (
+              <option key={i.value} value={i.value}>
+                {i.label}
+              </option>
+            ))}
           </Select>
         </FormControl>
         {showActive && (
-          <FormControl display="flex" alignItems="center" justifyContent="space-between">
-            <FormLabel fontSize="sm" mb={0}>Active</FormLabel>
+          <FormControl
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <FormLabel fontSize="sm" mb={0}>
+              Active
+            </FormLabel>
             <Switch
               isChecked={form.active}
-              onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, active: e.target.checked }))
+              }
               colorScheme="brand"
             />
           </FormControl>
         )}
       </VStack>
     </form>
-  )
+  );
 }
 
-const defaultForm = { label: '', url: '', selector: '', interval_minutes: 60, active: true, currency: 'GBP' }
+const defaultForm = {
+  label: "",
+  url: "",
+  selector: "",
+  interval_minutes: 60,
+  active: true,
+  currency: "GBP",
+};
 
 export default function SourcesPanel({ product, isSuperAdmin }) {
-  const queryClient = useQueryClient()
-  const [showAdd, setShowAdd] = useState(false)
-  const [editingSource, setEditingSource] = useState(null)
-  const [form, setForm] = useState(defaultForm)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [scrapingId, setScrapingId] = useState(null)
+  const queryClient = useQueryClient();
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingSource, setEditingSource] = useState(null);
+  const [form, setForm] = useState(defaultForm);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [scrapingId, setScrapingId] = useState(null);
 
   const { data: sources = [] } = useQuery({
-    queryKey: ['sources', product.id],
-    queryFn: () => getSources(product.id).then(r => r.data)
-  })
+    queryKey: ["sources", product.id],
+    queryFn: () => getSources(product.id).then((r) => r.data),
+  });
 
   const { data: nextRunTimes = {} } = useQuery({
-    queryKey: ['nextRunTimes'],
-    queryFn: () => getNextRunTimes().then(r => r.data),
-    refetchInterval: 60000
-  })
+    queryKey: ["nextRunTimes"],
+    queryFn: () => getNextRunTimes().then((r) => r.data),
+    refetchInterval: 60000,
+  });
 
   const { data: history = [] } = useQuery({
-    queryKey: ['history', product.id],
-    queryFn: () => getPriceHistory(product.id).then(r => r.data),
-    refetchInterval: 60000
-  })
+    queryKey: ["history", product.id],
+    queryFn: () => getPriceHistory(product.id).then((r) => r.data),
+    refetchInterval: 60000,
+  });
 
   const { data: currencies = {} } = useQuery({
-    queryKey: ['currencies'],
-    queryFn: () => getCurrencies().then(r => r.data)
-  })
+    queryKey: ["currencies"],
+    queryFn: () => getCurrencies().then((r) => r.data),
+  });
 
-  const lastScrape = {}
-  history.forEach(h => {
-    if (!lastScrape[h.source_id] || new Date(h.scraped_at) > new Date(lastScrape[h.source_id].scraped_at)) {
-      lastScrape[h.source_id] = h
+  const lastScrape = {};
+  history.forEach((h) => {
+    if (
+      !lastScrape[h.source_id] ||
+      new Date(h.scraped_at) > new Date(lastScrape[h.source_id].scraped_at)
+    ) {
+      lastScrape[h.source_id] = h;
     }
-  })
+  });
 
   const openAdd = () => {
-    setForm(defaultForm)
-    setError('')
-    setShowAdd(true)
-  }
+    setForm(defaultForm);
+    setError("");
+    setShowAdd(true);
+  };
 
   const openEdit = (source) => {
-    setEditingSource(source)
+    setEditingSource(source);
     setForm({
       label: source.label,
       url: source.url,
-      selector: source.selector || '',
+      selector: source.selector || "",
       interval_minutes: source.interval_minutes,
       active: source.active,
-      currency: source.currency || 'GBP'
-    })
-    setError('')
-  }
+      currency: source.currency || "GBP",
+    });
+    setError("");
+  };
 
   const handleAdd = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
     try {
       await addSource(product.id, {
         label: form.label || null,
         url: form.url,
         selector: form.selector || null,
         interval_minutes: parseInt(form.interval_minutes),
-        currency: form.currency
-      })
-      queryClient.invalidateQueries(['sources', product.id])
-      queryClient.invalidateQueries(['nextRunTimes'])
-      setShowAdd(false)
+        currency: form.currency,
+      });
+      queryClient.invalidateQueries(["sources", product.id]);
+      queryClient.invalidateQueries(["nextRunTimes"]);
+      setShowAdd(false);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to add source')
+      setError(err.response?.data?.detail || "Failed to add source");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleEdit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
     try {
       await updateSource(product.id, editingSource.id, {
         label: form.label || null,
@@ -185,51 +296,59 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
         selector: form.selector || null,
         interval_minutes: parseInt(form.interval_minutes),
         active: form.active,
-        currency: form.currency
-      })
-      queryClient.invalidateQueries(['sources', product.id])
-      queryClient.invalidateQueries(['nextRunTimes'])
-      setEditingSource(null)
+        currency: form.currency,
+      });
+      queryClient.invalidateQueries(["sources", product.id]);
+      queryClient.invalidateQueries(["nextRunTimes"]);
+      setEditingSource(null);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to update source')
+      setError(err.response?.data?.detail || "Failed to update source");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDelete = async (sourceId) => {
-    if (!confirm('Delete this source and all its price history?')) return
-    await deleteSource(product.id, sourceId)
-    queryClient.invalidateQueries(['sources', product.id])
-    queryClient.invalidateQueries(['nextRunTimes'])
-  }
+    if (!confirm("Delete this source and all its price history?")) return;
+    await deleteSource(product.id, sourceId);
+    queryClient.invalidateQueries(["sources", product.id]);
+    queryClient.invalidateQueries(["nextRunTimes"]);
+  };
 
   const handleScrape = async (sourceId) => {
-    setScrapingId(sourceId)
+    setScrapingId(sourceId);
     try {
-      await triggerSourceScrape(sourceId)
+      await triggerSourceScrape(sourceId);
       setTimeout(() => {
-        queryClient.invalidateQueries(['history', String(product.id)])
-        setScrapingId(null)
-      }, 8000)
+        queryClient.invalidateQueries(["history", String(product.id)]);
+        setScrapingId(null);
+      }, 8000);
     } catch {
-      setScrapingId(null)
+      setScrapingId(null);
     }
-  }
+  };
 
   return (
     <Box p={6}>
       <HStack justify="space-between" mb={4}>
         <Heading size="sm">Sources ({sources.length}/5)</Heading>
         {sources.length < 5 && (
-          <Button size="sm" colorScheme="brand" variant="solid" leftIcon={<Plus size={13} />} onClick={openAdd}>
+          <Button
+            size="sm"
+            colorScheme="brand"
+            variant="solid"
+            leftIcon={<Plus size={13} />}
+            onClick={openAdd}
+          >
             Add source
           </Button>
         )}
       </HStack>
 
       {sources.length === 0 ? (
-        <Text fontSize="sm" color="gray.400">No sources added yet — add a URL to start tracking prices</Text>
+        <Text fontSize="sm" color="gray.400">
+          No sources added yet — add a URL to start tracking prices
+        </Text>
       ) : (
         <Table size="sm">
           <Thead>
@@ -246,54 +365,129 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
             </Tr>
           </Thead>
           <Tbody>
-            {sources.map(s => {
-              const last = lastScrape[s.id]
-              const sym = CURRENCY_SYMBOLS[s.currency] || s.currency
+            {sources.map((s) => {
+              const last = lastScrape[s.id];
+              const sym = CURRENCY_SYMBOLS[s.currency] || s.currency;
               return (
                 <Tr key={s.id}>
                   <Td fontWeight={500}>{s.label}</Td>
-                  {isSuperAdmin && <Td fontSize="xs" color="gray.400">{s.id}</Td>}
-                  <Td fontSize="xs" color="gray.400" maxW="200px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
-                    <Text as="a" href={s.url} target="_blank" rel="noreferrer">{s.url}</Text>
+                  {isSuperAdmin && (
+                    <Td fontSize="xs" color="gray.400">
+                      {s.id}
+                    </Td>
+                  )}
+                  <Td
+                    fontSize="xs"
+                    color="gray.400"
+                    maxW="200px"
+                    overflow="hidden"
+                    textOverflow="ellipsis"
+                    whiteSpace="nowrap"
+                  >
+                    <Text as="a" href={s.url} target="_blank" rel="noreferrer">
+                      {s.url}
+                    </Text>
                   </Td>
                   <Td>
-                    <Badge variant="subtle" fontSize="xs">{s.currency || 'GBP'}</Badge>
+                    <Badge variant="subtle" fontSize="xs">
+                      {s.currency || "GBP"}
+                    </Badge>
                   </Td>
                   <Td>
                     <Badge colorScheme="purple" variant="subtle" fontSize="xs">
-                      {s.interval_minutes < 60 ? `${s.interval_minutes}m` : `${s.interval_minutes / 60}h`}
+                      {s.interval_minutes < 60
+                        ? `${s.interval_minutes}m`
+                        : `${s.interval_minutes / 60}h`}
                     </Badge>
                   </Td>
                   <Td>
-                    <Badge colorScheme={s.active ? 'green' : 'gray'} fontSize="xs">
-                      {s.active ? 'Active' : 'Paused'}
-                    </Badge>
+                    <HStack spacing={1}>
+                      <Badge
+                        colorScheme={s.active ? "green" : "gray"}
+                        fontSize="xs"
+                      >
+                        {s.active ? "Active" : "Paused"}
+                      </Badge>
+                      {(() => {
+                        const health = getSourceHealth(s.id, history);
+                        if (!health) return null;
+                        return (
+                          <Badge
+                            colorScheme={
+                              health.color === "orange"
+                                ? "orange"
+                                : health.color === "red"
+                                  ? "red"
+                                  : "green"
+                            }
+                            variant="subtle"
+                            fontSize="xs"
+                          >
+                            {health.label}
+                          </Badge>
+                        );
+                      })()}
+                    </HStack>
                   </Td>
                   <Td>
                     {!last ? (
-                      <Text fontSize="xs" color="gray.400">—</Text>
+                      <Text fontSize="xs" color="gray.400">
+                        —
+                      </Text>
                     ) : last.error ? (
-                      <Badge colorScheme="red" fontSize="xs">ERROR</Badge>
+                      <Badge colorScheme="red" fontSize="xs">
+                        ERROR
+                      </Badge>
                     ) : (
                       <Text fontSize="xs" fontWeight={600} color="brand.600">
-                        {sym}{Number(last.price).toFixed(2)}
+                        {sym}
+                        {Number(last.price).toFixed(2)}
                       </Text>
                     )}
                   </Td>
                   <Td fontSize="xs" color="gray.400">
                     {nextRunTimes[s.id]
-                      ? new Date(nextRunTimes[s.id]).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-                      : s.active ? '—' : 'Paused'}
+                      ? new Date(nextRunTimes[s.id]).toLocaleString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : s.active
+                        ? "—"
+                        : "Paused"}
                   </Td>
                   <Td>
                     <HStack spacing={1}>
-                      <IconButton size="xs" variant="ghost" colorScheme="brand" icon={<RefreshCw size={12} />} isLoading={scrapingId === s.id} onClick={() => handleScrape(s.id)} aria-label="Scrape now" />
-                      <IconButton size="xs" variant="ghost" colorScheme="brand" icon={<Pencil size={12} />} onClick={() => openEdit(s)} aria-label="Edit" />
-                      <IconButton size="xs" variant="ghost" colorScheme="red" icon={<Trash2 size={12} />} onClick={() => handleDelete(s.id)} aria-label="Delete" />
+                      <IconButton
+                        size="xs"
+                        variant="ghost"
+                        colorScheme="brand"
+                        icon={<RefreshCw size={12} />}
+                        isLoading={scrapingId === s.id}
+                        onClick={() => handleScrape(s.id)}
+                        aria-label="Scrape now"
+                      />
+                      <IconButton
+                        size="xs"
+                        variant="ghost"
+                        colorScheme="brand"
+                        icon={<Pencil size={12} />}
+                        onClick={() => openEdit(s)}
+                        aria-label="Edit"
+                      />
+                      <IconButton
+                        size="xs"
+                        variant="ghost"
+                        colorScheme="red"
+                        icon={<Trash2 size={12} />}
+                        onClick={() => handleDelete(s.id)}
+                        aria-label="Delete"
+                      />
                     </HStack>
                   </Td>
                 </Tr>
-              )
+              );
             })}
           </Tbody>
         </Table>
@@ -305,11 +499,27 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
         <ModalContent borderRadius="xl">
           <ModalHeader>Add source</ModalHeader>
           <ModalBody>
-            <SourceForm form={form} setForm={setForm} onSubmit={handleAdd} error={error} showActive={false} currencies={currencies} />
+            <SourceForm
+              form={form}
+              setForm={setForm}
+              onSubmit={handleAdd}
+              error={error}
+              showActive={false}
+              currencies={currencies}
+            />
           </ModalBody>
           <ModalFooter gap={3}>
-            <Button variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button type="submit" form="source-form" colorScheme="brand" isLoading={loading}>Add source</Button>
+            <Button variant="ghost" onClick={() => setShowAdd(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="source-form"
+              colorScheme="brand"
+              isLoading={loading}
+            >
+              Add source
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -321,15 +531,31 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
           <ModalContent borderRadius="xl">
             <ModalHeader>Edit source — {editingSource.label}</ModalHeader>
             <ModalBody>
-              <SourceForm form={form} setForm={setForm} onSubmit={handleEdit} error={error} showActive={true} currencies={currencies} />
+              <SourceForm
+                form={form}
+                setForm={setForm}
+                onSubmit={handleEdit}
+                error={error}
+                showActive={true}
+                currencies={currencies}
+              />
             </ModalBody>
             <ModalFooter gap={3}>
-              <Button variant="ghost" onClick={() => setEditingSource(null)}>Cancel</Button>
-              <Button type="submit" form="source-form" colorScheme="brand" isLoading={loading}>Save changes</Button>
+              <Button variant="ghost" onClick={() => setEditingSource(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="source-form"
+                colorScheme="brand"
+                isLoading={loading}
+              >
+                Save changes
+              </Button>
             </ModalFooter>
           </ModalContent>
         </Modal>
       )}
     </Box>
-  )
+  );
 }
