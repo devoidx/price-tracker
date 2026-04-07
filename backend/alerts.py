@@ -1,11 +1,10 @@
 import logging
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 import models
 from notifications import get_provider, format_alert_email
 from push_notifications import send_push_to_user
-from routers.messages import create_system_message
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +48,16 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
         if not user or not user.email or not user.active:
             continue
 
+        # Cooldown — don't re-trigger within 24 hours
+        cooldown_hours = 24
+        if alert.last_triggered_at:
+            time_since_last = datetime.utcnow() - alert.last_triggered_at
+            if time_since_last < timedelta(hours=cooldown_hours):
+                logger.info(
+                    f"Alert {alert.id} skipped — triggered {time_since_last} ago (cooldown: {cooldown_hours}h)"
+                )
+                continue
+
         triggered = False
         subject, body = None, None
 
@@ -65,13 +74,34 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
                 "all_time_low",
                 Decimal(str(previous_low)),
             )
+
         elif alert.alert_type == "price_drop" and alert.threshold is not None:
             if float(current_price) <= float(alert.threshold):
                 triggered = True
                 subject, body = format_alert_email(
                     product.name, product.sources[0].url, current_price, "price_drop"
                 )
+
         elif alert.alert_type == "price_decreased" and price_decreased:
+            # Only trigger if price is lower than it was when the alert last fired
+            if alert.last_triggered_at:
+                price_at_last_trigger = next(
+                    (
+                        float(h.price)
+                        for h in reversed(all_history)
+                        if h.scraped_at <= alert.last_triggered_at
+                        and h.price is not None
+                    ),
+                    None,
+                )
+                if (
+                    price_at_last_trigger
+                    and float(current_price) >= price_at_last_trigger
+                ):
+                    logger.info(
+                        f"Alert {alert.id} skipped — price not lower than at last trigger (£{price_at_last_trigger:.2f})"
+                    )
+                    continue
             triggered = True
             subject, body = format_alert_email(
                 product.name,
@@ -101,9 +131,6 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
 
             source_url = str(product.sources[0].url) if product.sources else ""
             send_push_to_user(user.id, push_title, push_body, source_url, db)
-
-            if alert.in_app_messages:
-                create_system_message(user.id, push_title, push_body, db)
 
             if not alert.last_triggered_at:
                 alert.last_triggered_at = datetime.utcnow()
