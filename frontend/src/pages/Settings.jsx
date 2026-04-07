@@ -21,19 +21,19 @@ export default function Settings() {
   const set = (key, value) => setSettings(s => ({ ...s, [key]: value }))
 
   const handleGenerateKeys = async () => {
-  if (!confirm('This will replace any existing VAPID keys. All existing push subscriptions will stop working and users will need to re-enable push notifications. Continue?')) return
-  setGeneratingKeys(true)
-  setVapidMsg(null)
-  try {
-    const res = await generateVapidKeys()
-    setSettings(s => ({ ...s, vapid_public_key: res.data.public_key }))
-    setVapidMsg({ type: 'success', text: 'VAPID keys generated successfully' })
-  } catch (err) {
-    setVapidMsg({ type: 'error', text: err.response?.data?.detail || 'Failed to generate keys' })
-  } finally {
-    setGeneratingKeys(false)
+    if (!confirm('This will replace any existing VAPID keys. All existing push subscriptions will stop working and users will need to re-enable push notifications. Continue?')) return
+    setGeneratingKeys(true)
+    setVapidMsg(null)
+    try {
+      const res = await generateVapidKeys()
+      setSettings(s => ({ ...s, vapid_public_key: res.data.public_key }))
+      setVapidMsg({ type: 'success', text: 'VAPID keys generated successfully' })
+    } catch (err) {
+      setVapidMsg({ type: 'error', text: err.response?.data?.detail || 'Failed to generate keys' })
+    } finally {
+      setGeneratingKeys(false)
+    }
   }
-}
 
   const handleSave = async () => {
     setSaving(true)
@@ -74,45 +74,45 @@ export default function Settings() {
       )}
 
       <Box bg="white" _dark={{ bg: 'gray.800' }} borderRadius="xl" p={6} boxShadow="sm" mb={5}>
-  <Heading size="sm" mb={1}>Browser push notifications</Heading>
-  <Text fontSize="sm" color="gray.500" mb={4}>
-    VAPID keys enable browser push notifications. Generate keys once — regenerating will invalidate all existing subscriptions.
-  </Text>
-  {vapidMsg && (
-    <Alert status={vapidMsg.type} borderRadius="md" mb={4}>
-      <AlertIcon />{vapidMsg.text}
-    </Alert>
-  )}
-  <VStack spacing={4} align="stretch">
-    <FormControl>
-      <FormLabel fontSize="sm">Contact email</FormLabel>
-      <Input
-        value={settings.vapid_email || ''}
-        onChange={e => set('vapid_email', e.target.value)}
-        placeholder="mailto:admin@example.com"
-        focusBorderColor="brand.500"
-        type="email"
-      />
-      <FormHelperText fontSize="xs">Required by the Web Push protocol — not shown to users</FormHelperText>
-    </FormControl>
-    {settings.vapid_public_key && (
-      <FormControl>
-        <FormLabel fontSize="sm">Public key</FormLabel>
-        <Input value={settings.vapid_public_key} isReadOnly focusBorderColor="brand.500" fontFamily="mono" fontSize="xs" />
-      </FormControl>
-    )}
-    <HStack>
-      <Button colorScheme="brand" isLoading={generatingKeys} onClick={handleGenerateKeys}>
-        {settings.vapid_public_key ? 'Regenerate keys' : 'Generate keys'}
-      </Button>
-      {settings.vapid_public_key && (
-        <Button colorScheme="brand" isLoading={saving} onClick={handleSave}>
-          Save email
-        </Button>
-      )}
-    </HStack>
-  </VStack>
-</Box>
+        <Heading size="sm" mb={1}>Browser push notifications</Heading>
+        <Text fontSize="sm" color="gray.500" mb={4}>
+          VAPID keys enable browser push notifications. Generate keys once — regenerating will invalidate all existing subscriptions.
+        </Text>
+        {vapidMsg && (
+          <Alert status={vapidMsg.type} borderRadius="md" mb={4}>
+            <AlertIcon />{vapidMsg.text}
+          </Alert>
+        )}
+        <VStack spacing={4} align="stretch">
+          <FormControl>
+            <FormLabel fontSize="sm">Contact email</FormLabel>
+            <Input
+              value={settings.vapid_email || ''}
+              onChange={e => set('vapid_email', e.target.value)}
+              placeholder="mailto:admin@example.com"
+              focusBorderColor="brand.500"
+              type="email"
+            />
+            <FormHelperText fontSize="xs">Required by the Web Push protocol — not shown to users</FormHelperText>
+          </FormControl>
+          {settings.vapid_public_key && (
+            <FormControl>
+              <FormLabel fontSize="sm">Public key</FormLabel>
+              <Input value={settings.vapid_public_key} isReadOnly focusBorderColor="brand.500" fontFamily="mono" fontSize="xs" />
+            </FormControl>
+          )}
+          <HStack>
+            <Button colorScheme="brand" isLoading={generatingKeys} onClick={handleGenerateKeys}>
+              {settings.vapid_public_key ? 'Regenerate keys' : 'Generate keys'}
+            </Button>
+            {settings.vapid_public_key && (
+              <Button colorScheme="brand" isLoading={saving} onClick={handleSave}>
+                Save email
+              </Button>
+            )}
+          </HStack>
+        </VStack>
+      </Box>
 
       <Box bg="white" _dark={{ bg: "gray.800" }} borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Heading size="sm" mb={1}>Notifications</Heading>
@@ -240,6 +240,29 @@ export default function Settings() {
             Send test notification
           </Button>
         </HStack>
+      </Box>
+      <Box bg="white" _dark={{ bg: 'gray.800' }} borderRadius="xl" p={6} boxShadow="sm" mb={5}>
+        <Heading size="sm" mb={1}>Alerts</Heading>
+        <Text fontSize="sm" color="gray.500" mb={4}>
+          Configure how frequently alerts can be triggered for the same product.
+        </Text>
+        <FormControl maxW="200px">
+          <FormLabel fontSize="sm">Cooldown period (hours)</FormLabel>
+          <Input
+            type="number"
+            min={1}
+            max={168}
+            value={settings.alert_cooldown_hours || '24'}
+            onChange={e => set('alert_cooldown_hours', e.target.value)}
+            focusBorderColor="brand.500"
+          />
+          <FormHelperText fontSize="xs">
+            Minimum time between repeated notifications for the same alert. Default is 24 hours.
+          </FormHelperText>
+        </FormControl>
+        <Button mt={4} colorScheme="brand" isLoading={saving} onClick={handleSave}>
+          Save settings
+        </Button>
       </Box>
     </Box>
   )

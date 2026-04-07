@@ -84,6 +84,7 @@ INSERT INTO settings (key, value) VALUES
     ('vapid_public_key', ''),
     ('vapid_private_key', ''),
     ('vapid_email', ''),
+    ('alert_cooldown_hours', '24'),
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO firefox_sites (domain) VALUES ('argos.co.uk')

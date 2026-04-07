@@ -43,19 +43,19 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
 
     provider = get_provider(db)
 
+    # Read cooldown from settings
+    cooldown_setting = db.query(models.Setting).filter(models.Setting.key == 'alert_cooldown_hours').first()
+    cooldown_hours = int(cooldown_setting.value) if cooldown_setting and cooldown_setting.value else 24
+
     for alert in alerts:
         user = db.query(models.User).filter(models.User.id == alert.user_id).first()
         if not user or not user.email or not user.active:
             continue
 
-        # Cooldown — don't re-trigger within 24 hours
-        cooldown_hours = 24
         if alert.last_triggered_at:
             time_since_last = datetime.utcnow() - alert.last_triggered_at
             if time_since_last < timedelta(hours=cooldown_hours):
-                logger.info(
-                    f"Alert {alert.id} skipped — triggered {time_since_last} ago (cooldown: {cooldown_hours}h)"
-                )
+                logger.info(f"Alert {alert.id} skipped — triggered {time_since_last} ago (cooldown: {cooldown_hours}h)")
                 continue
 
         triggered = False
