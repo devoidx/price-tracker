@@ -30,7 +30,7 @@ import {
   ModalBody,
   ModalFooter,
 } from "@chakra-ui/react";
-import { Plus, Trash2, Pencil, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Pencil, RefreshCw, BellOff } from "lucide-react";
 import {
   getSources,
   addSource,
@@ -172,36 +172,36 @@ function SourceForm({
           </Select>
         </FormControl>
         {showActive && (
-          <FormControl
-            display="flex"
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            <FormLabel fontSize="sm" mb={0}>
-              Active
-            </FormLabel>
+            <FormControl
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <FormLabel fontSize="sm" mb={0}>Active</FormLabel>
+              <Switch
+                isChecked={form.active}
+                onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
+                colorScheme="brand"
+              />
+            </FormControl>
+          )}
+          <FormControl display="flex" alignItems="center" justifyContent="space-between">
+            <Box>
+              <FormLabel fontSize="sm" mb={0}>Exclude from alerts</FormLabel>
+              <Text fontSize="xs" color="gray.400">Price data from this source will not trigger alerts</Text>
+            </Box>
             <Switch
-              isChecked={form.active}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, active: e.target.checked }))
-              }
-              colorScheme="brand"
+              isChecked={form.exclude_from_alerts}
+              onChange={e => setForm(f => ({ ...f, exclude_from_alerts: e.target.checked }))}
+              colorScheme="orange"
             />
           </FormControl>
-        )}
-      </VStack>
-    </form>
+        </VStack>
+      </form>
   );
 }
 
-const defaultForm = {
-  label: "",
-  url: "",
-  selector: "",
-  interval_minutes: 60,
-  active: true,
-  currency: "GBP",
-};
+const defaultForm = { label: '', url: '', selector: '', interval_minutes: 60, active: true, currency: 'GBP', exclude_from_alerts: false }
 
 export default function SourcesPanel({ product, isSuperAdmin }) {
   const queryClient = useQueryClient();
@@ -211,6 +211,11 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [scrapingId, setScrapingId] = useState(null);
+
+  const handleToggleAlerts = async (sourceId, currentlyExcluded) => {
+    await updateSource(product.id, sourceId, { exclude_from_alerts: !currentlyExcluded })
+    queryClient.invalidateQueries(['sources', product.id])
+  }
 
   const { data: sources = [] } = useQuery({
     queryKey: ["sources", product.id],
@@ -259,6 +264,7 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
       interval_minutes: source.interval_minutes,
       active: source.active,
       currency: source.currency || "GBP",
+      exclude_from_alerts: source.exclude_from_alerts || false
     });
     setError("");
   };
@@ -274,6 +280,7 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
         selector: form.selector || null,
         interval_minutes: parseInt(form.interval_minutes),
         currency: form.currency,
+        exclude_from_alerts: form.exclude_from_alerts
       });
       queryClient.invalidateQueries(["sources", product.id]);
       queryClient.invalidateQueries(["nextRunTimes"]);
@@ -297,6 +304,7 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
         interval_minutes: parseInt(form.interval_minutes),
         active: form.active,
         currency: form.currency,
+        exclude_from_alerts: form.exclude_from_alerts
       });
       queryClient.invalidateQueries(["sources", product.id]);
       queryClient.invalidateQueries(["nextRunTimes"]);
@@ -401,34 +409,28 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
                     </Badge>
                   </Td>
                   <Td>
-                    <HStack spacing={1}>
-                      <Badge
-                        colorScheme={s.active ? "green" : "gray"}
-                        fontSize="xs"
-                      >
-                        {s.active ? "Active" : "Paused"}
-                      </Badge>
-                      {(() => {
-                        const health = getSourceHealth(s.id, history);
-                        if (!health) return null;
-                        return (
-                          <Badge
-                            colorScheme={
-                              health.color === "orange"
-                                ? "orange"
-                                : health.color === "red"
-                                  ? "red"
-                                  : "green"
-                            }
-                            variant="subtle"
-                            fontSize="xs"
-                          >
-                            {health.label}
-                          </Badge>
-                        );
-                      })()}
-                    </HStack>
-                  </Td>
+  <HStack spacing={1}>
+    <Badge colorScheme={s.active ? 'green' : 'gray'} fontSize="xs">
+      {s.active ? 'Active' : 'Paused'}
+    </Badge>
+    {s.exclude_from_alerts && (
+      <Badge colorScheme="orange" variant="subtle" fontSize="xs">No alerts</Badge>
+    )}
+    {(() => {
+      const health = getSourceHealth(s.id, history)
+      if (!health) return null
+      return (
+        <Badge
+          colorScheme={health.color === 'orange' ? 'orange' : health.color === 'red' ? 'red' : 'green'}
+          variant="subtle"
+          fontSize="xs"
+        >
+          {health.label}
+        </Badge>
+      )
+    })()}
+  </HStack>
+</Td>
                   <Td>
                     {!last ? (
                       <Text fontSize="xs" color="gray.400">
@@ -448,44 +450,31 @@ export default function SourcesPanel({ product, isSuperAdmin }) {
                   <Td fontSize="xs" color="gray.400">
                     {nextRunTimes[s.id]
                       ? new Date(nextRunTimes[s.id]).toLocaleString("en-GB", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
                       : s.active
                         ? "—"
                         : "Paused"}
                   </Td>
                   <Td>
-                    <HStack spacing={1}>
-                      <IconButton
-                        size="xs"
-                        variant="ghost"
-                        colorScheme="brand"
-                        icon={<RefreshCw size={12} />}
-                        isLoading={scrapingId === s.id}
-                        onClick={() => handleScrape(s.id)}
-                        aria-label="Scrape now"
-                      />
-                      <IconButton
-                        size="xs"
-                        variant="ghost"
-                        colorScheme="brand"
-                        icon={<Pencil size={12} />}
-                        onClick={() => openEdit(s)}
-                        aria-label="Edit"
-                      />
-                      <IconButton
-                        size="xs"
-                        variant="ghost"
-                        colorScheme="red"
-                        icon={<Trash2 size={12} />}
-                        onClick={() => handleDelete(s.id)}
-                        aria-label="Delete"
-                      />
-                    </HStack>
-                  </Td>
+  <HStack spacing={1}>
+    <IconButton size="xs" variant="ghost" colorScheme="brand" icon={<RefreshCw size={12} />} isLoading={scrapingId === s.id} onClick={() => handleScrape(s.id)} aria-label="Scrape now" />
+    <IconButton size="xs" variant="ghost" colorScheme="brand" icon={<Pencil size={12} />} onClick={() => openEdit(s)} aria-label="Edit" />
+    <IconButton
+      size="xs"
+      variant="ghost"
+      colorScheme={s.exclude_from_alerts ? 'orange' : 'gray'}
+      icon={<BellOff size={12} />}
+      onClick={() => handleToggleAlerts(s.id, s.exclude_from_alerts)}
+      aria-label={s.exclude_from_alerts ? 'Enable alerts' : 'Disable alerts'}
+      title={s.exclude_from_alerts ? 'Alerts disabled — click to enable' : 'Alerts enabled — click to disable'}
+    />
+    <IconButton size="xs" variant="ghost" colorScheme="red" icon={<Trash2 size={12} />} onClick={() => handleDelete(s.id)} aria-label="Delete" />
+  </HStack>
+</Td>
                 </Tr>
               );
             })}

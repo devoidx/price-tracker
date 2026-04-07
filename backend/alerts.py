@@ -19,6 +19,8 @@ def check_alerts(product_id: int, current_price: Decimal, db: Session):
 
     all_history = []
     for source in product.sources:
+        if source.exclude_from_alerts:
+            continue
         for h in source.price_history:
             if h.price is not None:
                 all_history.append(h)

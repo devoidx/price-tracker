@@ -38,6 +38,7 @@ class Source(Base):
     interval_minutes = Column(Integer, default=60)
     active = Column(Boolean, default=True)
     currency = Column(String(10), default='GBP')
+    exclude_from_alerts = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
     product = relationship("Product", back_populates="sources")
     price_history = relationship("PriceHistory", back_populates="source", cascade="all, delete-orphan")

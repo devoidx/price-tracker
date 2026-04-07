@@ -31,6 +31,7 @@ class SourceCreate(BaseModel):
     selector: Optional[str] = None
     interval_minutes: int = 60
     currency: str = 'GBP'
+    exclude_from_alerts: bool = False
 
 class SourceUpdate(BaseModel):
     label: Optional[str] = None
@@ -39,6 +40,7 @@ class SourceUpdate(BaseModel):
     interval_minutes: Optional[int] = None
     active: Optional[bool] = None
     currency: Optional[str] = None
+    exclude_from_alerts: Optional[bool] = None
 
 class SourceOut(BaseModel):
     id: int

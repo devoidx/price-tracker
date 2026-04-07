@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS sources (
     interval_minutes INTEGER NOT NULL DEFAULT 60,
     active BOOLEAN DEFAULT TRUE,
     currency VARCHAR(10) DEFAULT 'GBP',
+    exclude_from_alerts BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

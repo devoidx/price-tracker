@@ -170,6 +170,7 @@ def add_source(
         selector=selector,
         interval_minutes=source.interval_minutes,
         currency=currency,
+        exclude_from_alerts=source.exclude_from_alerts,
     )
     db.add(new_source)
     db.commit()
