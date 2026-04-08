@@ -23,6 +23,8 @@ export default function Profile() {
   const [email, setEmail] = useState(user.email)
   const [emailMsg, setEmailMsg] = useState(null)
   const [emailLoading, setEmailLoading] = useState(false)
+  const [firstName, setFirstName] = useState(user.first_name || '')
+  const [lastName, setLastName] = useState(user.last_name || '')
 
   const [passwords, setPasswords] = useState({ current_password: '', new_password: '', confirm_password: '' })
   const [passwordMsg, setPasswordMsg] = useState(null)
@@ -117,8 +119,8 @@ export default function Profile() {
     setEmailLoading(true)
     setEmailMsg(null)
     try {
-      const res = await updateProfile({ email })
-      setUser({ ...user, email: res.data.email })
+      const res = await updateProfile({ email, first_name: firstName, last_name: lastName })
+      setUser({ ...user, email: res.data.email, first_name: res.data.first_name, last_name: res.data.last_name })
       setEmailMsg({ type: 'success', text: 'Email updated successfully' })
     } catch (err) {
       setEmailMsg({ type: 'error', text: err.response?.data?.detail || 'Failed to update email' })
@@ -155,8 +157,14 @@ export default function Profile() {
       <Heading size="lg" mb={8}>My Profile</Heading>
 
       {/* Account info */}
-      <Box bg="white" _dark={{ bg: "gray.800" }} borderRadius="xl" p={6} boxShadow="sm" mb={5}>
+      <Box bg="white" _dark={{ bg: 'gray.800' }} borderRadius="xl" p={6} boxShadow="sm" mb={5}>
         <Heading size="sm" mb={4}>Account</Heading>
+        {(user.first_name || user.last_name) && (
+          <HStack mb={4}>
+            <Text fontSize="sm" color="gray.500" w="120px">Name</Text>
+            <Text fontSize="sm" fontWeight={500}>{[user.first_name, user.last_name].filter(Boolean).join(' ')}</Text>
+          </HStack>
+        )}
         <HStack mb={4}>
           <Text fontSize="sm" color="gray.500" w="120px">Username</Text>
           <Text fontSize="sm" fontWeight={500}>{user.username}</Text>
@@ -274,7 +282,7 @@ export default function Profile() {
             {/* Email tab */}
             <TabPanel>
               <Text fontSize="sm" color="gray.500" mb={4}>
-                This is where price alert notifications will be sent.
+                Update your personal details and email address.
               </Text>
               {emailMsg && (
                 <Alert status={emailMsg.type} borderRadius="md" mb={4}>
@@ -283,6 +291,26 @@ export default function Profile() {
               )}
               <form onSubmit={handleProfileUpdate}>
                 <VStack spacing={4} align="stretch">
+                  <HStack spacing={4}>
+                    <FormControl>
+                      <FormLabel fontSize="sm">First name</FormLabel>
+                      <Input
+                        value={firstName}
+                        onChange={e => setFirstName(e.target.value)}
+                        focusBorderColor="brand.500"
+                        placeholder="Tony"
+                      />
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel fontSize="sm">Last name</FormLabel>
+                      <Input
+                        value={lastName}
+                        onChange={e => setLastName(e.target.value)}
+                        focusBorderColor="brand.500"
+                        placeholder="McMahon"
+                      />
+                    </FormControl>
+                  </HStack>
                   <FormControl isRequired>
                     <FormLabel fontSize="sm">Email address</FormLabel>
                     <Input
@@ -291,9 +319,10 @@ export default function Profile() {
                       onChange={e => setEmail(e.target.value)}
                       focusBorderColor="brand.500"
                     />
+                    <FormHelperText fontSize="xs">This is where price alert notifications will be sent.</FormHelperText>
                   </FormControl>
                   <Button type="submit" colorScheme="brand" alignSelf="flex-start" isLoading={emailLoading}>
-                    Save email
+                    Save details
                   </Button>
                 </VStack>
               </form>

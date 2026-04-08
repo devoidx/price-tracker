@@ -14,6 +14,8 @@ class User(Base):
     active = Column(Boolean, default=True)
     default_currency = Column(String(10), default='GBP')
     color_mode = Column(String(10), default='light')
+    first_name = Column(String(100), default='')
+    last_name = Column(String(100), default='')
     created_at = Column(DateTime, server_default=func.now())
     products = relationship("Product", back_populates="user")
 

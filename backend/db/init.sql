@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
     active BOOLEAN DEFAULT TRUE,
     default_currency VARCHAR(10) DEFAULT 'GBP',
     color_mode VARCHAR(10) DEFAULT 'light',
+    first_name VARCHAR(100) DEFAULT '',
+    last_name VARCHAR(100) DEFAULT '',
     created_at TIMESTAMP DEFAULT NOW()
 );
 

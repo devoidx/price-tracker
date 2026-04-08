@@ -5,6 +5,7 @@ from database import get_db
 from pydantic import BaseModel
 from currencies import SUPPORTED_CURRENCIES, fetch_exchange_rates
 import models, schemas, auth
+from typing import Optional
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -64,6 +65,8 @@ def change_password(
 
 class ProfileUpdate(BaseModel):
     email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 @router.put("/me/profile")
@@ -80,6 +83,10 @@ def update_profile(
     if existing:
         raise HTTPException(status_code=400, detail="Email already in use")
     current_user.email = body.email
+    if body.first_name is not None:
+        current_user.first_name = body.first_name
+    if body.last_name is not None:
+        current_user.last_name = body.last_name
     db.commit()
     db.refresh(current_user)
     return current_user

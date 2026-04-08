@@ -17,6 +17,8 @@ def require_super_admin(current_user: models.User = Depends(auth.get_current_use
 class AdminUserUpdate(BaseModel):
     email: Optional[str] = None
     username: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     is_admin: Optional[bool] = None
     is_super_admin: Optional[bool] = None
     active: Optional[bool] = None

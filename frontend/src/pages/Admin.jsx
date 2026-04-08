@@ -141,11 +141,13 @@ export default function Admin() {
     setEditingUser(user);
     setEditForm({
       username: user.username,
-      email: user.email || "",
+      email: user.email || '',
+      first_name: user.first_name || '',
+      last_name: user.last_name || '',
       is_admin: user.is_admin,
       is_super_admin: user.is_super_admin,
-      active: user.active,
-    });
+      active: user.active
+    })
     setEditError("");
   };
 
@@ -282,18 +284,12 @@ export default function Admin() {
             <TabPanel>
               <Table size="sm">
                 <Thead>
-                  <Tr>
-                    <Th>Username</Th>
-                    <Th>Email</Th>
-                    <Th>Role</Th>
-                    <Th>Status</Th>
-                    <Th>Joined</Th>
-                    <Th></Th>
-                  </Tr>
+                  <Tr><Th>Name</Th><Th>Username</Th><Th>Email</Th><Th>Role</Th><Th>Status</Th><Th>Joined</Th><Th></Th></Tr>
                 </Thead>
                 <Tbody>
                   {users.map((u) => (
                     <Tr key={u.id}>
+                      <Td fontSize="xs" color="gray.500">{[u.first_name, u.last_name].filter(Boolean).join(' ') || '—'}</Td>
                       <Td fontWeight={500}>{u.username}</Td>
                       <Td color="gray.500">{u.email}</Td>
                       <Td>
@@ -554,14 +550,14 @@ export default function Admin() {
                       <Td fontSize="xs" color="gray.400">
                         {s.last_scraped_at
                           ? new Date(s.last_scraped_at).toLocaleString(
-                              "en-GB",
-                              {
-                                day: "numeric",
-                                month: "short",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )
+                            "en-GB",
+                            {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )
                           : "—"}
                       </Td>
                       <Td
@@ -941,24 +937,21 @@ export default function Admin() {
                 )}
                 <FormControl>
                   <FormLabel fontSize="sm">Username</FormLabel>
-                  <Input
-                    value={editForm.username}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, username: e.target.value })
-                    }
-                    focusBorderColor="brand.500"
-                  />
+                  <Input value={editForm.username} onChange={e => setEditForm({ ...editForm, username: e.target.value })} focusBorderColor="brand.500" />
                 </FormControl>
+                <HStack spacing={4}>
+                  <FormControl>
+                    <FormLabel fontSize="sm">First name</FormLabel>
+                    <Input value={editForm.first_name || ''} onChange={e => setEditForm({ ...editForm, first_name: e.target.value })} focusBorderColor="brand.500" />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize="sm">Last name</FormLabel>
+                    <Input value={editForm.last_name || ''} onChange={e => setEditForm({ ...editForm, last_name: e.target.value })} focusBorderColor="brand.500" />
+                  </FormControl>
+                </HStack>
                 <FormControl>
                   <FormLabel fontSize="sm">Email</FormLabel>
-                  <Input
-                    type="email"
-                    value={editForm.email}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, email: e.target.value })
-                    }
-                    focusBorderColor="brand.500"
-                  />
+                  <Input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} focusBorderColor="brand.500" />
                 </FormControl>
                 <FormControl
                   display="flex"
