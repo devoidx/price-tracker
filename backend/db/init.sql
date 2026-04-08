@@ -156,3 +156,18 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(user_id, endpoint)
 );
+
+CREATE TABLE IF NOT EXISTS categories (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    color VARCHAR(20) DEFAULT 'teal',
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS product_categories (
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    PRIMARY KEY(product_id, category_id)
+);

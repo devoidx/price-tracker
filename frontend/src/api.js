@@ -102,3 +102,10 @@ export const markAllRead = () => api.patch('/messages/read-all')
 export const deleteMessage = (id) => api.delete(`/messages/${id}`)
 export const getMessageUsers = () => api.get('/messages/users')
 export const sendSystemMessage = (data) => api.post('/messages/system', data)
+
+// Categories
+export const getCategories = () => api.get('/categories')
+export const createCategory = (data) => api.post('/categories', data)
+export const updateCategory = (id, data) => api.patch(`/categories/${id}`, data)
+export const deleteCategory = (id) => api.delete(`/categories/${id}`)
+export const setProductCategories = (productId, data) => api.put(`/categories/products/${productId}`, data)

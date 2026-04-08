@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { Box, Text, Heading, HStack } from '@chakra-ui/react'
+import { Box, Text, Heading, HStack, IconButton } from '@chakra-ui/react'
 import { useQuery } from '@tanstack/react-query'
 import { getPriceHistory } from '../api'
-import { TrendingDown, TrendingUp } from 'lucide-react'
+import { TrendingDown, TrendingUp, Tag } from 'lucide-react'
 
 const CURRENCY_SYMBOLS = {
   GBP: '£', USD: '$', EUR: '€', JPY: '¥',
@@ -10,7 +10,7 @@ const CURRENCY_SYMBOLS = {
   SEK: 'kr', NOK: 'kr', DKK: 'kr'
 }
 
-export default function ProductCard({ product, nextRun }) {
+export default function ProductCard({ product, nextRun, onCategorise }) {
   const navigate = useNavigate()
 
   const { data: history = [] } = useQuery({
@@ -31,10 +31,10 @@ export default function ProductCard({ product, nextRun }) {
   const latestPrices = Object.values(bySource)
   const lowestCurrent = latestPrices.length > 0
     ? latestPrices.reduce((a, b) => {
-        const aPrice = parseFloat(a.converted_price || a.price)
-        const bPrice = parseFloat(b.converted_price || b.price)
-        return aPrice < bPrice ? a : b
-      })
+      const aPrice = parseFloat(a.converted_price || a.price)
+      const bPrice = parseFloat(b.converted_price || b.price)
+      return aPrice < bPrice ? a : b
+    })
     : null
 
   // Display price — use converted if available
@@ -85,6 +85,14 @@ export default function ProductCard({ product, nextRun }) {
         {sourceCount} source{sourceCount !== 1 ? 's' : ''}
       </Text>
 
+      {product.categories?.length > 0 && (
+        <HStack spacing={1} mb={3} flexWrap="wrap">
+          {product.categories.map(cat => (
+            <Badge key={cat.id} colorScheme={cat.color} fontSize="xs" variant="subtle">{cat.name}</Badge>
+          ))}
+        </HStack>
+      )}
+
       {lowestCurrent ? (
         <>
           <HStack align="baseline" spacing={2}>
@@ -111,12 +119,32 @@ export default function ProductCard({ product, nextRun }) {
         <Text fontSize="sm" color="gray.400">No price data yet</Text>
       )}
 
+      {product.categories?.length > 0 && (
+        <HStack spacing={1} mb={3} flexWrap="wrap">
+          {product.categories.map(cat => (
+            <Badge key={cat.id} colorScheme={cat.color} fontSize="xs" variant="subtle">{cat.name}</Badge>
+          ))}
+        </HStack>
+      )}
+
       <Box borderTop="1px" borderColor="gray.200" mt={4} pt={3}>
-        <Text fontSize="xs" color="gray.400">
-          {nextRun
-            ? `Next check: ${new Date(nextRun).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-            : sourceCount === 0 ? 'No sources added' : 'Scheduling...'}
-        </Text>
+        <HStack justify="space-between">
+          <Text fontSize="xs" color="gray.400">
+            {nextRun
+              ? `Next check: ${new Date(nextRun).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+              : sourceCount === 0 ? 'No sources added' : 'Scheduling...'}
+          </Text>
+          {onCategorise && (
+            <IconButton
+              size="xs"
+              variant="ghost"
+              colorScheme="gray"
+              icon={<Tag size={11} />}
+              onClick={e => { e.stopPropagation(); onCategorise() }}
+              aria-label="Manage categories"
+            />
+          )}
+        </HStack>
       </Box>
     </Box>
   )

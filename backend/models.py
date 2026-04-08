@@ -29,6 +29,7 @@ class Product(Base):
     user = relationship("User", back_populates="products")
     sources = relationship("Source", back_populates="product", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="product", cascade="all, delete-orphan")
+    categories = relationship("Category", secondary="product_categories", back_populates="products")
 
 class Source(Base):
     __tablename__ = "sources"
@@ -121,3 +122,18 @@ class Message(Base):
     created_at = Column(DateTime, server_default=func.now())
     sender = relationship("User", foreign_keys=[sender_id])
     recipient = relationship("User", foreign_keys=[recipient_id])
+
+class Category(Base):
+    __tablename__ = "categories"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(100), nullable=False)
+    color = Column(String(20), default='teal')
+    created_at = Column(DateTime, server_default=func.now())
+    user = relationship("User")
+    products = relationship("Product", secondary="product_categories", back_populates="categories")
+
+class ProductCategory(Base):
+    __tablename__ = "product_categories"
+    product_id = Column(Integer, ForeignKey("products.id"), primary_key=True)
+    category_id = Column(Integer, ForeignKey("categories.id"), primary_key=True)

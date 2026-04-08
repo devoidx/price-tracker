@@ -4,7 +4,10 @@ import { getProducts, getNextRunTimes, getPriceHistory } from '../api'
 import ProductCard from '../components/ProductCard'
 import AddProductModal from '../components/AddProductModal'
 import { Box, Button, Grid, Heading, Text, Spinner, HStack, Input, InputGroup, InputLeftElement, Menu, MenuButton, MenuList, MenuItem, Alert, AlertIcon, InputLeftAddon } from '@chakra-ui/react'
-import { Plus, Search, ChevronDown } from 'lucide-react'
+import { Plus, Search, ChevronDown, Tag } from 'lucide-react'
+import { getCategories } from '../api'
+import CategoryModal from '../components/CategoryModal'
+import ProductCategoryModal from '../components/ProductCategoryModal'
 
 const SORT_OPTIONS = [
   { value: 'name', label: 'Name (A–Z)' },
@@ -61,6 +64,9 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState('name')
   const [search, setSearch] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
+  const [selectedCategories, setSelectedCategories] = useState([])
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [categorisingProduct, setCategorisingProduct] = useState(null)
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
@@ -74,6 +80,11 @@ export default function Dashboard() {
     refetchInterval: 60000
   })
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => getCategories().then(r => r.data)
+  })
+
   const allHistories = useAllHistories(products)
 
   const sorted = useMemo(() => {
@@ -81,6 +92,15 @@ export default function Dashboard() {
 
     if (search.trim()) {
       list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    }
+
+    // Filter by selected categories
+    if (selectedCategories.length > 0) {
+      list = list.filter(p =>
+        selectedCategories.every(catId =>
+          p.categories?.some(c => c.id === catId)
+        )
+      )
     }
 
     // Filter by max price
@@ -151,9 +171,14 @@ export default function Dashboard() {
     <Box maxW="1100px" mx="auto" px={6} py={8}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={6}>
         <Heading size="lg">Dashboard</Heading>
-        <Button colorScheme="brand" leftIcon={<Plus size={16} />} onClick={() => setShowAdd(true)}>
-          Track product
-        </Button>
+        <HStack>
+          <Button size="sm" variant="outline" colorScheme="brand" leftIcon={<Tag size={14} />} onClick={() => setShowCategoryModal(true)}>
+            Categories
+          </Button>
+          <Button colorScheme="brand" leftIcon={<Plus size={16} />} onClick={() => setShowAdd(true)}>
+            Track product
+          </Button>
+        </HStack>
       </Box>
 
       {products.length > 0 && (
@@ -208,6 +233,35 @@ export default function Dashboard() {
         </HStack>
       )}
 
+      {categories.length > 0 && (
+        <HStack spacing={2} flexWrap="wrap">
+          {categories.map(cat => (
+            <Badge
+              key={cat.id}
+              colorScheme={cat.color}
+              variant={selectedCategories.includes(cat.id) ? 'solid' : 'outline'}
+              cursor="pointer"
+              px={3}
+              py={1}
+              fontSize="xs"
+              borderRadius="full"
+              onClick={() => setSelectedCategories(prev =>
+                prev.includes(cat.id)
+                  ? prev.filter(id => id !== cat.id)
+                  : [...prev, cat.id]
+              )}
+            >
+              {cat.name}
+            </Badge>
+          ))}
+          {selectedCategories.length > 0 && (
+            <Badge variant="ghost" cursor="pointer" onClick={() => setSelectedCategories([])} fontSize="xs" color="gray.400">
+              Clear
+            </Badge>
+          )}
+        </HStack>
+      )}
+
       {products.length === 0 ? (
         <Box textAlign="center" py={20}>
           <Text fontSize="xl" fontWeight={600} mb={2}>No products tracked yet</Text>
@@ -228,7 +282,7 @@ export default function Dashboard() {
           </Alert>
           <Grid templateColumns="repeat(auto-fill, minmax(280px, 1fr))" gap={5}>
             {sorted.map(p => (
-              <ProductCard key={p.id} product={p} nextRun={nextRunTimes[p.id]} />
+              <ProductCard key={p.id} product={p} nextRun={nextRunTimes[p.id]} onCategorise={() => setCategorisingProduct(p)} />
             ))}
           </Grid>
         </>
@@ -244,6 +298,15 @@ export default function Dashboard() {
           }}
         />
       )}
+      <CategoryModal isOpen={showCategoryModal} onClose={() => setShowCategoryModal(false)} />
+      {categorisingProduct && (
+        <ProductCategoryModal
+          product={categorisingProduct}
+          isOpen={!!categorisingProduct}
+          onClose={() => setCategorisingProduct(null)}
+        />
+      )}
     </Box>
+
   )
 }
