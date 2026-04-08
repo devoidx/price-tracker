@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getProducts, getNextRunTimes, getPriceHistory } from '../api'
 import ProductCard from '../components/ProductCard'
 import AddProductModal from '../components/AddProductModal'
-import { Box, Button, Grid, Heading, Text, Spinner, HStack, Input, InputGroup, InputLeftElement, Menu, MenuButton, MenuList, MenuItem, Alert, AlertIcon } from '@chakra-ui/react'
+import { Box, Button, Grid, Heading, Text, Spinner, HStack, Input, InputGroup, InputLeftElement, Menu, MenuButton, MenuList, MenuItem, Alert, AlertIcon, InputLeftAddon } from '@chakra-ui/react'
 import { Plus, Search, ChevronDown } from 'lucide-react'
 
 const SORT_OPTIONS = [
@@ -60,6 +60,7 @@ export default function Dashboard() {
   const [showAdd, setShowAdd] = useState(false)
   const [sortBy, setSortBy] = useState('name')
   const [search, setSearch] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
@@ -80,6 +81,32 @@ export default function Dashboard() {
 
     if (search.trim()) {
       list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    }
+
+    // Filter by max price
+    if (maxPrice !== '') {
+      const max = parseFloat(maxPrice)
+      if (!isNaN(max)) {
+        list = list.filter(p => {
+          const history = allHistories[p.id] || []
+          const validHistory = history.filter(h => h.price !== null)
+          const bySource = {}
+          validHistory.forEach(h => {
+            if (!bySource[h.source_id] || new Date(h.scraped_at) > new Date(bySource[h.source_id].scraped_at)) {
+              bySource[h.source_id] = h
+            }
+          })
+          const latestPrices = Object.values(bySource)
+          if (latestPrices.length === 0) return false
+          const lowest = latestPrices.reduce((a, b) => {
+            const aPrice = parseFloat(a.converted_price || a.price)
+            const bPrice = parseFloat(b.converted_price || b.price)
+            return aPrice < bPrice ? a : b
+          })
+          const lowestPrice = parseFloat(lowest.converted_price || lowest.price)
+          return lowestPrice <= max
+        })
+      }
     }
 
     list.sort((a, b) => {
@@ -112,7 +139,7 @@ export default function Dashboard() {
     })
 
     return list
-  }, [products, sortBy, search, allHistories])
+  }, [products, sortBy, search, maxPrice, allHistories])
 
   if (isLoading) return (
     <Box display="flex" justifyContent="center" alignItems="center" minH="50vh">
@@ -130,7 +157,7 @@ export default function Dashboard() {
       </Box>
 
       {products.length > 0 && (
-        <HStack mb={6} spacing={3}>
+        <HStack mb={6} spacing={3} flexWrap="wrap">
           <InputGroup maxW="280px">
             <InputLeftElement pointerEvents="none">
               <Search size={14} color="gray" />
@@ -162,6 +189,22 @@ export default function Dashboard() {
               ))}
             </MenuList>
           </Menu>
+          <InputGroup maxW="180px" size="sm">
+            <InputLeftAddon fontSize="xs" px={2}>Max</InputLeftAddon>
+            <Input
+              type="number"
+              placeholder="Price limit"
+              value={maxPrice}
+              onChange={e => setMaxPrice(e.target.value)}
+              focusBorderColor="brand.500"
+              bg="white" _dark={{ bg: "gray.800", color: "white" }}
+            />
+          </InputGroup>
+          {maxPrice !== '' && (
+            <Button size="sm" variant="ghost" colorScheme="gray" onClick={() => setMaxPrice('')}>
+              Clear
+            </Button>
+          )}
         </HStack>
       )}
 
